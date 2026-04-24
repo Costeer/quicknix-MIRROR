@@ -3,7 +3,7 @@
 **_quiet by design_**
 
 <p align="center">
-  <img src="https://assets.quicknix.dev/quicknix-logo.svg?v=2" alt="QuickNix Logo" style="width: 192px" />
+  <img src="Assets/quicknix.svg" alt="QuickNix Logo" style="width: 192px" />
 </p>
 
 <p align="center">

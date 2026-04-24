@@ -1,0 +1,13 @@
+.qmlls.ini
+.zed
+.idea
+.vscode
+*.code-workspace
+RELEASE.md
+__pycache__
+examples/
+result
+build
+/debian/
+.direnv/
+.envrc

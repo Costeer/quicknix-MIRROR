@@ -3,17 +3,12 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    quicknix-qs = {
-      url = "github:quicknix-dev/quicknix-qs";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
   outputs =
     {
       self,
       nixpkgs,
-      quicknix-qs,
       ...
     }:
     let
@@ -47,20 +42,15 @@
       });
 
       overlays = {
-        default = nixpkgs.lib.composeManyExtensions [
-          quicknix-qs.overlays.default
-          (final: prev: {
-            quicknix-shell = final.callPackage ./nix/package.nix {
-              inherit version;
-            };
-          })
-        ];
+        default = final: prev: {
+          quicknix-shell = final.callPackage ./nix/package.nix {
+            inherit version;
+          };
+        };
       };
 
       devShells = eachSystem (system: {
-        default = pkgsFor.${system}.callPackage ./nix/shell.nix {
-          quickshell = quicknix-qs.packages.${system}.default;
-        };
+        default = pkgsFor.${system}.callPackage ./nix/shell.nix { };
       });
 
       homeModules.default =

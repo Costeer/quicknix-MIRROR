@@ -11,6 +11,9 @@ NBox {
   Layout.fillWidth: true
   implicitHeight: calendarContent.implicitHeight + Style.margin2M
 
+  readonly property string viewMode: _viewMode
+  property string _viewMode: "month"
+
   readonly property var now: Time.now
   property int calendarMonth: now.getMonth()
   property int calendarYear: now.getFullYear()
@@ -52,6 +55,60 @@ NBox {
 
   function _selectedDateObject() {
     return new Date(selectedYear, selectedMonth, selectedDay);
+  }
+
+  function _weekStartDate(date) {
+    // Timetable weeks always start on Monday, independent of locale settings.
+    const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const day = d.getDay();
+    const diff = (day + 6) % 7;
+    d.setDate(d.getDate() - diff);
+    return d;
+  }
+
+  property var weekStart: _weekStartDate(_selectedDateObject())
+
+  function _weekEndDate() {
+    const d = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate());
+    d.setDate(d.getDate() + 6);
+    return d;
+  }
+
+  function _weekTitle() {
+    const end = _weekEndDate();
+    const startMonth = I18n.locale.monthName(weekStart.getMonth(), Locale.ShortFormat).toUpperCase();
+    const endMonth = I18n.locale.monthName(end.getMonth(), Locale.ShortFormat).toUpperCase();
+    if (weekStart.getFullYear() !== end.getFullYear())
+      return startMonth + " " + weekStart.getDate() + " " + weekStart.getFullYear() + " — " + endMonth + " " + end.getDate() + " " + end.getFullYear();
+    if (weekStart.getMonth() !== end.getMonth())
+      return startMonth + " " + weekStart.getDate() + " — " + endMonth + " " + end.getDate() + " " + end.getFullYear();
+    return startMonth + " " + weekStart.getDate() + " — " + end.getDate() + " " + end.getFullYear();
+  }
+
+  function toggleView() {
+    _viewMode = _viewMode === "month" ? "week" : "month";
+  }
+
+  function navigateToPreviousPeriod() {
+    if (_viewMode === "week")
+      navigateToPreviousWeek();
+    else
+      navigateToPreviousMonth();
+  }
+
+  function navigateToNextPeriod() {
+    if (_viewMode === "week")
+      navigateToNextWeek();
+    else
+      navigateToNextMonth();
+  }
+
+  function navigateToPreviousWeek() {
+    _moveSelectionByDays(-7);
+  }
+
+  function navigateToNextWeek() {
+    _moveSelectionByDays(7);
   }
 
   function _moveSelectionByDays(deltaDays) {
@@ -109,6 +166,9 @@ NBox {
     case Qt.Key_Escape:
       TooltipService.hide();
       return true;
+    case Qt.Key_V:
+      toggleView();
+      return true;
     case Qt.Key_T:
       if (event.modifiers & Qt.ControlModifier) {
         selectToday();
@@ -116,10 +176,16 @@ NBox {
       }
       return false;
     case Qt.Key_Left:
-      _moveSelectionByDays(-1);
+      if (_viewMode === "week")
+        navigateToPreviousWeek();
+      else
+        _moveSelectionByDays(-1);
       return true;
     case Qt.Key_Right:
-      _moveSelectionByDays(1);
+      if (_viewMode === "week")
+        navigateToNextWeek();
+      else
+        _moveSelectionByDays(1);
       return true;
     case Qt.Key_Up:
       _moveSelectionByDays(-7);
@@ -128,16 +194,22 @@ NBox {
       _moveSelectionByDays(7);
       return true;
     case Qt.Key_PageUp:
-      _moveSelectionByMonths(-1);
+      if (_viewMode === "week")
+        navigateToPreviousWeek();
+      else
+        _moveSelectionByMonths(-1);
       return true;
     case Qt.Key_PageDown:
-      _moveSelectionByMonths(1);
+      if (_viewMode === "week")
+        navigateToNextWeek();
+      else
+        _moveSelectionByMonths(1);
       return true;
     case Qt.Key_H:
-      _moveSelectionByMonths(-1);
+      navigateToPreviousPeriod();
       return true;
     case Qt.Key_L:
-      _moveSelectionByMonths(1);
+      navigateToNextPeriod();
       return true;
     case Qt.Key_R:
       resetToToday();
@@ -203,6 +275,37 @@ NBox {
     return CalendarSubscriptionService.eventsForDate(year, month, day)
   }
 
+  function eventsIntersectingDate(year, month, day) {
+    if (!Settings.data.location.showCalendarEvents || !CalendarSubscriptionService.available)
+      return []
+    var startOfDay = new Date(year, month, day).getTime() / 1000
+    var endOfDay = startOfDay + 86400
+    var evts = CalendarSubscriptionService.events.filter(function (evt) {
+      return evt.start < endOfDay && evt.end > startOfDay
+    })
+    evts.sort(function (a, b) { return a.start - b.start })
+    return evts
+  }
+
+  function timedEventsForDate(year, month, day) {
+    return eventsIntersectingDate(year, month, day).filter(function (evt) { return !evt.allDay })
+  }
+
+  function allDayEventsForDate(year, month, day) {
+    return eventsIntersectingDate(year, month, day).filter(function (evt) { return evt.allDay })
+  }
+
+  function minutesFromDayStart(epoch, year, month, day) {
+    var dayStart = new Date(year, month, day).getTime() / 1000
+    return Math.max(0, Math.min(1440, Math.round((epoch - dayStart) / 60)))
+  }
+
+  function eventDurationMinutes(evt, year, month, day) {
+    var dayStart = new Date(year, month, day).getTime() / 1000
+    var dayEnd = dayStart + 86400
+    return Math.max(20, Math.round((Math.min(evt.end, dayEnd) - Math.max(evt.start, dayStart)) / 60))
+  }
+
   function hasEventsOnDate(year, month, day) {
     if (!Settings.data.location.showCalendarEvents || !CalendarSubscriptionService.available)
       return false
@@ -248,6 +351,7 @@ NBox {
 
   WheelHandler {
     target: root
+    enabled: root._viewMode === "month"
     acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
     onWheel: function (event) {
       if (event.angleDelta.y > 0)
@@ -273,7 +377,7 @@ NBox {
       }
 
       NText {
-        text: I18n.locale.monthName(root.calendarMonth, Locale.LongFormat).toUpperCase() + " " + root.calendarYear
+        text: root._viewMode === "week" ? root._weekTitle() : I18n.locale.monthName(root.calendarMonth, Locale.LongFormat).toUpperCase() + " " + root.calendarYear
         pointSize: Style.fontSizeM
         font.weight: Style.fontWeightBold
         color: Color.mOnSurface
@@ -291,7 +395,7 @@ NBox {
           id: prevMonthBtn
           anchors.fill: parent
           icon: "chevron-left"
-          onClicked: root.navigateToPreviousMonth()
+          onClicked: root.navigateToPreviousPeriod()
         }
 
         NKeyHint {
@@ -326,6 +430,27 @@ NBox {
       }
 
       Item {
+        implicitWidth: viewBtn.implicitWidth
+        implicitHeight: viewBtn.implicitHeight
+
+        NIconButton {
+          id: viewBtn
+          anchors.fill: parent
+          icon: root._viewMode === "week" ? "calendar-month" : "calendar-week"
+          onClicked: root.toggleView()
+        }
+
+        NKeyHint {
+          key: "v"
+          anchors.right: parent.right
+          anchors.bottom: parent.bottom
+          anchors.rightMargin: -badgeSize * 0.25
+          anchors.bottomMargin: -badgeSize * 0.25
+          z: 1
+        }
+      }
+
+      Item {
         implicitWidth: nextMonthBtn.implicitWidth
         implicitHeight: nextMonthBtn.implicitHeight
 
@@ -333,7 +458,7 @@ NBox {
           id: nextMonthBtn
           anchors.fill: parent
           icon: "chevron-right"
-          onClicked: root.navigateToNextMonth()
+          onClicked: root.navigateToNextPeriod()
         }
 
         NKeyHint {
@@ -348,6 +473,7 @@ NBox {
     }
 
     RowLayout {
+      visible: root._viewMode === "month"
       Layout.fillWidth: true
       spacing: 0
 
@@ -387,6 +513,7 @@ NBox {
     }
 
     RowLayout {
+      visible: root._viewMode === "month"
       Layout.fillWidth: true
       spacing: 0
 
@@ -576,6 +703,272 @@ NBox {
                   color: {
                     var evt = dayEvents[index]
                     return root.getEventColor(evt, modelData.today)
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    ColumnLayout {
+      id: weekView
+      visible: root._viewMode === "week"
+      Layout.fillWidth: true
+      spacing: Style.marginS
+
+      property real timeColumnWidth: Style.baseWidgetSize * 1.05
+      property real dayHeaderHeight: Style.baseWidgetSize * 1.1
+      property real allDayHeight: Style.baseWidgetSize * 1.0
+      property real hourHeight: Math.round(34 * Style.uiScaleRatio)
+      property real gridHeight: hourHeight * 24
+      property var weekDays: {
+        var days = []
+        for (var i = 0; i < 7; i++) {
+          var d = new Date(root.weekStart.getFullYear(), root.weekStart.getMonth(), root.weekStart.getDate() + i)
+          var today = new Date()
+          days.push({
+                      "day": d.getDate(),
+                      "month": d.getMonth(),
+                      "year": d.getFullYear(),
+                      "dow": d.getDay(),
+                      "today": d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth() && d.getDate() === today.getDate()
+                    })
+        }
+        return days
+      }
+
+      RowLayout {
+        Layout.fillWidth: true
+        spacing: Style.marginXXS
+
+        Item {
+          Layout.preferredWidth: weekView.timeColumnWidth
+          Layout.preferredHeight: weekView.dayHeaderHeight
+        }
+
+        Repeater {
+          model: weekView.weekDays
+
+          Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: weekView.dayHeaderHeight
+            radius: Style.radiusM
+            color: modelData.today ? Color.mSecondary : Qt.alpha(Color.mSurface, 0.55)
+            border.width: Style.borderS
+            border.color: modelData.today ? Qt.alpha(Color.mSecondary, 0.8) : Style.boxBorderColor
+
+            Column {
+              anchors.centerIn: parent
+              spacing: -Style.marginXXS
+
+              NText {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: I18n.locale.dayName(modelData.dow, Locale.ShortFormat).substring(0, 2).toUpperCase()
+                pointSize: Style.fontSizeXXS
+                font.weight: Style.fontWeightBold
+                color: modelData.today ? Color.mOnSecondary : Color.mPrimary
+              }
+
+              NText {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: modelData.day
+                pointSize: Style.fontSizeM
+                font.weight: Style.fontWeightBold
+                color: modelData.today ? Color.mOnSecondary : Color.mOnSurface
+              }
+            }
+
+            MouseArea {
+              anchors.fill: parent
+              cursorShape: Qt.PointingHandCursor
+              onClicked: root.selectDate(modelData.year, modelData.month, modelData.day)
+            }
+          }
+        }
+      }
+
+      RowLayout {
+        Layout.fillWidth: true
+        spacing: Style.marginXXS
+
+        NText {
+          Layout.preferredWidth: weekView.timeColumnWidth
+          Layout.preferredHeight: weekView.allDayHeight
+          text: qsTr("ALL")
+          pointSize: Style.fontSizeXXS
+          font.weight: Style.fontWeightBold
+          color: Color.mOnSurfaceVariant
+          horizontalAlignment: Text.AlignRight
+          verticalAlignment: Text.AlignVCenter
+        }
+
+        Repeater {
+          model: weekView.weekDays
+
+          Rectangle {
+            id: allDayCell
+            Layout.fillWidth: true
+            Layout.preferredHeight: weekView.allDayHeight
+            radius: Style.radiusS
+            color: Qt.alpha(Color.mSurface, 0.45)
+            border.width: Style.borderS
+            border.color: Style.boxBorderColor
+            clip: true
+
+            property var dayData: modelData
+            property var allDayEvents: root.allDayEventsForDate(dayData.year, dayData.month, dayData.day)
+
+            Column {
+              anchors.fill: parent
+              anchors.margins: Style.marginXXXS
+              spacing: Style.marginXXXS
+
+              Repeater {
+                model: Math.min(parent.parent.allDayEvents.length, 2)
+
+                Rectangle {
+                  property var eventData: allDayCell.allDayEvents[index]
+                  width: parent.width
+                  height: Math.round(Style.baseWidgetSize * 0.32)
+                  radius: Style.radiusXS
+                  color: root.getEventColor(eventData, allDayCell.dayData.today)
+
+                  NText {
+                    anchors.fill: parent
+                    anchors.leftMargin: Style.marginXXS
+                    anchors.rightMargin: Style.marginXXS
+                    text: parent.eventData.summary || qsTr("Event")
+                    pointSize: Style.fontSizeXXS
+                    font.weight: Style.fontWeightSemiBold
+                    color: Color.mOnPrimary
+                    elide: Text.ElideRight
+                    verticalAlignment: Text.AlignVCenter
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      Flickable {
+        id: weekFlick
+        Layout.fillWidth: true
+        Layout.preferredHeight: Math.round(360 * Style.uiScaleRatio)
+        contentWidth: width
+        contentHeight: weekView.gridHeight
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+
+        Item {
+          width: weekFlick.width
+          height: weekView.gridHeight
+
+          Repeater {
+            model: 25
+            Item {
+              width: parent.width
+              height: Style.borderS
+              y: index * weekView.hourHeight
+
+              Rectangle {
+                x: weekView.timeColumnWidth + Style.marginXXS
+                width: parent.width - x
+                height: Style.borderS
+                color: index % 6 === 0 ? Qt.alpha(Color.mOutline, 0.65) : Qt.alpha(Color.mOutline, 0.25)
+              }
+
+              NText {
+                visible: index < 24
+                x: 0
+                y: -contentHeight / 2
+                width: weekView.timeColumnWidth - Style.marginXXS
+                text: (index < 10 ? "0" + index : index) + ":00"
+                pointSize: Style.fontSizeXXS
+                color: Color.mOnSurfaceVariant
+                horizontalAlignment: Text.AlignRight
+              }
+            }
+          }
+
+          Row {
+            x: weekView.timeColumnWidth + Style.marginXXS
+            y: 0
+            width: parent.width - x
+            height: parent.height
+            spacing: Style.marginXXS
+
+            Repeater {
+              model: weekView.weekDays
+
+              Item {
+                id: dayColumn
+                width: (parent.width - Style.marginXXS * 6) / 7
+                height: parent.height
+                property var dayData: modelData
+
+                Rectangle {
+                  anchors.fill: parent
+                  radius: Style.radiusXS
+                  color: Qt.alpha(Color.mSurface, 0.22)
+                  border.width: Style.borderS
+                  border.color: Qt.alpha(Color.mOutline, 0.25)
+                }
+
+                property var timedEvents: root.timedEventsForDate(dayData.year, dayData.month, dayData.day)
+
+                Repeater {
+                  model: parent.timedEvents
+
+                  Rectangle {
+                    property var eventData: modelData
+                    x: Style.marginXXXS
+                    y: (root.minutesFromDayStart(eventData.start, dayColumn.dayData.year, dayColumn.dayData.month, dayColumn.dayData.day) / 60) * weekView.hourHeight
+                    width: parent.width - Style.marginXXS
+                    height: Math.max(Style.baseWidgetSize * 0.65, (root.eventDurationMinutes(eventData, dayColumn.dayData.year, dayColumn.dayData.month, dayColumn.dayData.day) / 60) * weekView.hourHeight - Style.marginXXXS)
+                    radius: Style.radiusS
+                    color: Qt.alpha(root.getEventColor(eventData, dayColumn.dayData.today), 0.9)
+                    border.width: Style.borderS
+                    border.color: Qt.alpha(Color.mOnPrimary, 0.25)
+                    clip: true
+
+                    Column {
+                      anchors.fill: parent
+                      anchors.margins: Style.marginXXXS
+                      spacing: 0
+
+                      NText {
+                        width: parent.width
+                        text: eventData.summary || qsTr("Event")
+                        pointSize: Style.fontSizeXXS
+                        font.weight: Style.fontWeightBold
+                        color: Color.mOnPrimary
+                        elide: Text.ElideRight
+                        maximumLineCount: 2
+                        wrapMode: Text.Wrap
+                      }
+
+                      NText {
+                        width: parent.width
+                        text: root.formatTime(eventData.start) + " – " + root.formatTime(eventData.end)
+                        pointSize: Style.fontSizeXXS
+                        color: Qt.alpha(Color.mOnPrimary, 0.82)
+                        elide: Text.ElideRight
+                      }
+                    }
+
+                    MouseArea {
+                      anchors.fill: parent
+                      hoverEnabled: true
+                      cursorShape: Qt.PointingHandCursor
+                      onEntered: {
+                        var tip = (eventData.summary || qsTr("Event")) + "\n" + root.formatTime(eventData.start) + " - " + root.formatTime(eventData.end) + (eventData.location ? " · " + eventData.location : "")
+                        TooltipService.show(parent, tip, "auto", Style.tooltipDelay, Settings.data.ui.fontDefault)
+                      }
+                      onExited: TooltipService.hide(parent)
+                    }
                   }
                 }
               }

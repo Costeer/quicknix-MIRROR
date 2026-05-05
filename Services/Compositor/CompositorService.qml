@@ -78,7 +78,7 @@ Singleton {
       isMango = true;
       isLabwc = false;
       isExtWorkspace = false;
-      backendLoader.sourceComponent = mangoComponent;
+      backendLoader.source = Qt.resolvedUrl("MangoService.qml");
     } else if (labwcPid && labwcPid.length > 0) {
       isHyprland = false;
       isNiri = false;
@@ -86,7 +86,7 @@ Singleton {
       isMango = false;
       isLabwc = true;
       isExtWorkspace = false;
-      backendLoader.sourceComponent = labwcComponent;
+      backendLoader.source = Qt.resolvedUrl("LabwcService.qml");
       Logger.i("CompositorService", "Detected LabWC with PID: " + labwcPid);
     } else if (niriSocket && niriSocket.length > 0) {
       isHyprland = false;
@@ -95,7 +95,7 @@ Singleton {
       isMango = false;
       isLabwc = false;
       isExtWorkspace = false;
-      backendLoader.sourceComponent = niriComponent;
+      backendLoader.source = Qt.resolvedUrl("NiriService.qml");
     } else if (hyprlandSignature && hyprlandSignature.length > 0) {
       isHyprland = true;
       isNiri = false;
@@ -103,7 +103,7 @@ Singleton {
       isMango = false;
       isLabwc = false;
       isExtWorkspace = false;
-      backendLoader.sourceComponent = hyprlandComponent;
+      backendLoader.source = Qt.resolvedUrl("HyprlandService.qml");
     } else if (swaySock && swaySock.length > 0) {
       isHyprland = false;
       isNiri = false;
@@ -112,7 +112,7 @@ Singleton {
       isLabwc = false;
       isExtWorkspace = false;
       isScroll = currentDesktop && currentDesktop.toLowerCase().includes("scroll");
-      backendLoader.sourceComponent = swayComponent;
+      backendLoader.source = Qt.resolvedUrl("SwayService.qml");
     } else {
       // Always fallback to ext-workspace-v1
       isHyprland = false;
@@ -121,7 +121,7 @@ Singleton {
       isMango = false;
       isLabwc = false;
       isExtWorkspace = true;
-      backendLoader.sourceComponent = extWorkspaceComponent;
+      backendLoader.source = Qt.resolvedUrl("ExtWorkspaceService.qml");
       Logger.i("CompositorService", "Using generic ext-workspace backend (no recognized compositor env)");
     }
   }
@@ -158,53 +158,9 @@ Singleton {
     }
   }
 
-  // Hyprland backend component
-  Component {
-    id: hyprlandComponent
-    HyprlandService {
-      id: hyprlandBackend
-    }
-  }
-
-  // Niri backend component
-  Component {
-    id: niriComponent
-    NiriService {
-      id: niriBackend
-    }
-  }
-
-  // Sway backend component
-  Component {
-    id: swayComponent
-    SwayService {
-      id: swayBackend
-    }
-  }
-
-  // Mango backend component
-  Component {
-    id: mangoComponent
-    MangoService {
-      id: mangoBackend
-    }
-  }
-
-  // Labwc backend component
-  Component {
-    id: labwcComponent
-    LabwcService {
-      id: labwcBackend
-    }
-  }
-
-  // Generic ext-workspace (WindowManager) when compositor env is unknown
-  Component {
-    id: extWorkspaceComponent
-    ExtWorkspaceService {
-      id: extWorkspaceBackend
-    }
-  }
+  // Backend services are loaded by URL instead of referenced as inline Components.
+  // This keeps optional compositor modules optional: e.g. Hyprland users can run
+  // without Quickshell.Niri installed because NiriService.qml is never parsed.
 
   function setupBackendConnections() {
     if (!backend)

@@ -14,6 +14,19 @@ NBox {
   readonly property string viewMode: _viewMode
   property string _viewMode: "month"
 
+  Component.onCompleted: Qt.callLater(function () {
+    var savedMode = ShellState.data.ui && ShellState.data.ui.calendarViewMode
+    if (savedMode === "week" || savedMode === "month")
+      _viewMode = savedMode
+  })
+
+  on_ViewModeChanged: {
+    var uiState = Object.assign({}, ShellState.data.ui || {})
+    uiState.calendarViewMode = _viewMode
+    ShellState.data.ui = uiState
+    ShellState.save()
+  }
+
   readonly property var now: Time.now
   property int calendarMonth: now.getMonth()
   property int calendarYear: now.getFullYear()
@@ -303,7 +316,33 @@ NBox {
   function eventDurationMinutes(evt, year, month, day) {
     var dayStart = new Date(year, month, day).getTime() / 1000
     var dayEnd = dayStart + 86400
-    return Math.max(20, Math.round((Math.min(evt.end, dayEnd) - Math.max(evt.start, dayStart)) / 60))
+    return Math.max(16, Math.round((Math.min(evt.end, dayEnd) - Math.max(evt.start, dayStart)) / 60))
+  }
+
+  function visibleHoursForWeek(startDate) {
+    var hasEarlyOrLate = false
+    for (var i = 0; i < 7; i++) {
+      var d = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + i)
+      var evts = timedEventsForDate(d.getFullYear(), d.getMonth(), d.getDate())
+      for (var j = 0; j < evts.length; j++) {
+        var start = new Date(evts[j].start * 1000)
+        var end = new Date(evts[j].end * 1000)
+        var startMin = start.getHours() * 60 + start.getMinutes()
+        var endMin = end.getHours() * 60 + end.getMinutes()
+        if (startMin < 360 || endMin > 1320) {
+          hasEarlyOrLate = true
+          break
+        }
+      }
+      if (hasEarlyOrLate)
+        break
+    }
+    return hasEarlyOrLate ? { "start": 0, "end": 24 } : { "start": 6, "end": 22 }
+  }
+
+  function currentMinuteOfDay() {
+    var n = Time.now
+    return n.getHours() * 60 + n.getMinutes() + n.getSeconds() / 60
   }
 
   function hasEventsOnDate(year, month, day) {
@@ -365,7 +404,10 @@ NBox {
   ColumnLayout {
     id: calendarContent
     anchors.fill: parent
-    anchors.margins: Style.marginM
+    anchors.topMargin: Style.marginM
+    anchors.rightMargin: Style.marginM
+    anchors.bottomMargin: Style.marginM
+    anchors.leftMargin: Style.marginXS
     spacing: Style.marginS
 
     RowLayout {
@@ -718,11 +760,16 @@ NBox {
       Layout.fillWidth: true
       spacing: Style.marginS
 
-      property real timeColumnWidth: Style.baseWidgetSize * 1.05
-      property real dayHeaderHeight: Style.baseWidgetSize * 1.1
-      property real allDayHeight: Style.baseWidgetSize * 1.0
-      property real hourHeight: Math.round(34 * Style.uiScaleRatio)
-      property real gridHeight: hourHeight * 24
+      property real timeColumnWidth: Style.baseWidgetSize * 1.35
+      property real dayHeaderHeight: Style.baseWidgetSize * 1.05
+      property real allDayHeight: Style.baseWidgetSize * 0.75
+      property real hourHeight: Math.round(24 * Style.uiScaleRatio)
+      property real gridTopPadding: Math.round(Style.fontSizeXS * Style.uiScaleRatio)
+      property real gridBottomPadding: Math.round(Style.fontSizeS * Style.uiScaleRatio * 0.5)
+      property var visibleRange: root.visibleHoursForWeek(root.weekStart)
+      property int startHour: visibleRange.start
+      property int endHour: visibleRange.end
+      property real gridHeight: hourHeight * (endHour - startHour)
       property var weekDays: {
         var days = []
         for (var i = 0; i < 7; i++) {
@@ -739,51 +786,65 @@ NBox {
         return days
       }
 
-      RowLayout {
+      Item {
+        id: weekHeaderRow
         Layout.fillWidth: true
-        spacing: Style.marginXXS
+        Layout.preferredHeight: weekView.dayHeaderHeight
+        Layout.minimumHeight: weekView.dayHeaderHeight
+        height: weekView.dayHeaderHeight
 
-        Item {
-          Layout.preferredWidth: weekView.timeColumnWidth
-          Layout.preferredHeight: weekView.dayHeaderHeight
-        }
+        Row {
+          anchors.fill: parent
+          spacing: Style.marginXXS
 
-        Repeater {
-          model: weekView.weekDays
+          Item {
+            width: weekView.timeColumnWidth
+            height: parent.height
+          }
 
-          Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: weekView.dayHeaderHeight
-            radius: Style.radiusM
-            color: modelData.today ? Color.mSecondary : Qt.alpha(Color.mSurface, 0.55)
-            border.width: Style.borderS
-            border.color: modelData.today ? Qt.alpha(Color.mSecondary, 0.8) : Style.boxBorderColor
+          Repeater {
+            model: weekView.weekDays
 
-            Column {
-              anchors.centerIn: parent
-              spacing: -Style.marginXXS
-
-              NText {
-                anchors.horizontalCenter: parent.horizontalCenter
-                text: I18n.locale.dayName(modelData.dow, Locale.ShortFormat).substring(0, 2).toUpperCase()
-                pointSize: Style.fontSizeXXS
-                font.weight: Style.fontWeightBold
-                color: modelData.today ? Color.mOnSecondary : Color.mPrimary
+            Rectangle {
+              width: (weekHeaderRow.width - weekView.timeColumnWidth - Style.marginXXS * 7) / 7
+              height: weekHeaderRow.height
+              radius: Style.radiusM
+              color: modelData.today ? Color.mSecondary : Qt.alpha(Color.mSurface, 0.55)
+              border.width: Style.borderS
+              border.color: modelData.today ? Qt.alpha(Color.mSecondary, 0.8) : Style.boxBorderColor
+              opacity: {
+                var today = new Date()
+                var columnDate = new Date(modelData.year, modelData.month, modelData.day)
+                var todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+                return columnDate < todayDate ? 0.58 : 1.0
               }
 
-              NText {
-                anchors.horizontalCenter: parent.horizontalCenter
-                text: modelData.day
-                pointSize: Style.fontSizeM
-                font.weight: Style.fontWeightBold
-                color: modelData.today ? Color.mOnSecondary : Color.mOnSurface
-              }
-            }
+              Column {
+                anchors.centerIn: parent
+                spacing: 0
 
-            MouseArea {
-              anchors.fill: parent
-              cursorShape: Qt.PointingHandCursor
-              onClicked: root.selectDate(modelData.year, modelData.month, modelData.day)
+                NText {
+                  anchors.horizontalCenter: parent.horizontalCenter
+                  text: I18n.locale.dayName(modelData.dow, Locale.ShortFormat).substring(0, 2).toUpperCase()
+                  pointSize: Style.fontSizeXXS
+                  font.weight: Style.fontWeightBold
+                  color: modelData.today ? Color.mOnSecondary : Color.mPrimary
+                }
+
+                NText {
+                  anchors.horizontalCenter: parent.horizontalCenter
+                  text: modelData.day
+                  pointSize: Style.fontSizeS
+                  font.weight: Style.fontWeightBold
+                  color: modelData.today ? Color.mOnSecondary : Color.mOnSurface
+                }
+              }
+
+              MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.selectDate(modelData.year, modelData.month, modelData.day)
+              }
             }
           }
         }
@@ -791,6 +852,8 @@ NBox {
 
       RowLayout {
         Layout.fillWidth: true
+        Layout.preferredHeight: weekView.allDayHeight
+        Layout.minimumHeight: weekView.allDayHeight
         spacing: Style.marginXXS
 
         NText {
@@ -810,12 +873,19 @@ NBox {
           Rectangle {
             id: allDayCell
             Layout.fillWidth: true
+            Layout.fillHeight: true
             Layout.preferredHeight: weekView.allDayHeight
             radius: Style.radiusS
             color: Qt.alpha(Color.mSurface, 0.45)
             border.width: Style.borderS
             border.color: Style.boxBorderColor
             clip: true
+            opacity: {
+              var today = new Date()
+              var columnDate = new Date(modelData.year, modelData.month, modelData.day)
+              var todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+              return columnDate < todayDate ? 0.58 : 1.0
+            }
 
             property var dayData: modelData
             property var allDayEvents: root.allDayEventsForDate(dayData.year, dayData.month, dayData.day)
@@ -856,36 +926,38 @@ NBox {
       Flickable {
         id: weekFlick
         Layout.fillWidth: true
-        Layout.preferredHeight: Math.round(360 * Style.uiScaleRatio)
+        Layout.preferredHeight: Math.round(380 * Style.uiScaleRatio)
         contentWidth: width
-        contentHeight: weekView.gridHeight
+        contentHeight: weekView.gridHeight + weekView.gridTopPadding + weekView.gridBottomPadding
         clip: true
         boundsBehavior: Flickable.StopAtBounds
 
         Item {
           width: weekFlick.width
-          height: weekView.gridHeight
+          height: weekView.gridHeight + weekView.gridTopPadding + weekView.gridBottomPadding
 
           Repeater {
-            model: 25
+            model: weekView.endHour - weekView.startHour + 1
             Item {
               width: parent.width
               height: Style.borderS
-              y: index * weekView.hourHeight
+              y: weekView.gridTopPadding + index * weekView.hourHeight
+
+              property int hour: weekView.startHour + index
 
               Rectangle {
                 x: weekView.timeColumnWidth + Style.marginXXS
                 width: parent.width - x
                 height: Style.borderS
-                color: index % 6 === 0 ? Qt.alpha(Color.mOutline, 0.65) : Qt.alpha(Color.mOutline, 0.25)
+                color: hour % 6 === 0 ? Qt.alpha(Color.mOutline, 0.65) : Qt.alpha(Color.mOutline, 0.25)
               }
 
               NText {
-                visible: index < 24
+                visible: hour < weekView.endHour
                 x: 0
                 y: -contentHeight / 2
                 width: weekView.timeColumnWidth - Style.marginXXS
-                text: (index < 10 ? "0" + index : index) + ":00"
+                text: (hour < 10 ? "0" + hour : hour) + ":00"
                 pointSize: Style.fontSizeXXS
                 color: Color.mOnSurfaceVariant
                 horizontalAlignment: Text.AlignRight
@@ -895,9 +967,9 @@ NBox {
 
           Row {
             x: weekView.timeColumnWidth + Style.marginXXS
-            y: 0
+            y: weekView.gridTopPadding
             width: parent.width - x
-            height: parent.height
+            height: weekView.gridHeight
             spacing: Style.marginXXS
 
             Repeater {
@@ -917,6 +989,49 @@ NBox {
                   border.color: Qt.alpha(Color.mOutline, 0.25)
                 }
 
+                Rectangle {
+                  anchors.fill: parent
+                  radius: Style.radiusXS
+                  color: "#000000"
+                  opacity: {
+                    var today = new Date()
+                    var columnDate = new Date(dayData.year, dayData.month, dayData.day)
+                    var todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+                    return columnDate < todayDate ? 0.28 : 0.0
+                  }
+                }
+
+                Rectangle {
+                  visible: dayData.today && root.currentMinuteOfDay() > weekView.startHour * 60
+                  x: 0
+                  y: 0
+                  width: parent.width
+                  height: Math.max(0, Math.min(parent.height, ((root.currentMinuteOfDay() - weekView.startHour * 60) / 60) * weekView.hourHeight))
+                  radius: Style.radiusXS
+                  color: "#000000"
+                  opacity: 0.18
+                }
+
+                Rectangle {
+                  visible: dayData.today && root.currentMinuteOfDay() >= weekView.startHour * 60 && root.currentMinuteOfDay() <= weekView.endHour * 60
+                  x: -Style.marginXXXS
+                  y: ((root.currentMinuteOfDay() - weekView.startHour * 60) / 60) * weekView.hourHeight - height / 2
+                  width: parent.width + Style.marginXXS
+                  height: Math.max(Style.borderM, 2 * Style.uiScaleRatio)
+                  radius: height / 2
+                  color: Color.mPrimary
+                  z: 20
+
+                  Rectangle {
+                    width: Style.marginXS
+                    height: width
+                    radius: width / 2
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: parent.color
+                  }
+                }
+
                 property var timedEvents: root.timedEventsForDate(dayData.year, dayData.month, dayData.day)
 
                 Repeater {
@@ -925,13 +1040,23 @@ NBox {
                   Rectangle {
                     property var eventData: modelData
                     x: Style.marginXXXS
-                    y: (root.minutesFromDayStart(eventData.start, dayColumn.dayData.year, dayColumn.dayData.month, dayColumn.dayData.day) / 60) * weekView.hourHeight
+                    y: ((root.minutesFromDayStart(eventData.start, dayColumn.dayData.year, dayColumn.dayData.month, dayColumn.dayData.day) - weekView.startHour * 60) / 60) * weekView.hourHeight
                     width: parent.width - Style.marginXXS
-                    height: Math.max(Style.baseWidgetSize * 0.65, (root.eventDurationMinutes(eventData, dayColumn.dayData.year, dayColumn.dayData.month, dayColumn.dayData.day) / 60) * weekView.hourHeight - Style.marginXXXS)
+                    height: Math.max(Style.baseWidgetSize * 0.48, (root.eventDurationMinutes(eventData, dayColumn.dayData.year, dayColumn.dayData.month, dayColumn.dayData.day) / 60) * weekView.hourHeight - Style.marginXXXS)
                     radius: Style.radiusS
                     color: Qt.alpha(root.getEventColor(eventData, dayColumn.dayData.today), 0.9)
                     border.width: Style.borderS
                     border.color: Qt.alpha(Color.mOnPrimary, 0.25)
+                    opacity: {
+                      var columnDate = new Date(dayColumn.dayData.year, dayColumn.dayData.month, dayColumn.dayData.day)
+                      var today = new Date()
+                      var todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+                      if (columnDate < todayDate)
+                        return 0.56
+                      if (dayColumn.dayData.today && eventData.end * 1000 < Date.now())
+                        return 0.68
+                      return 1.0
+                    }
                     clip: true
 
                     Column {

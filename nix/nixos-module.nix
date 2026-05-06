@@ -27,22 +27,22 @@ let
     else
       tomlFormat.generate "quicknix-${name}.toml" value;
 
-  configFiles =
-    lib.optionalAttrs (cfg.settings != { }) {
-      "settings.json" = generateJson "settings" cfg.settings;
-    }
-    // lib.optionalAttrs (cfg.colors != { }) {
-      "colors.json" = generateJson "colors" cfg.colors;
-    }
-    // lib.optionalAttrs (cfg.plugins != { }) {
-      "plugins.json" = generateJson "plugins" cfg.plugins;
-    }
-    // lib.optionalAttrs (cfg.user-templates != { }) {
-      "user-templates.toml" = generateToml "user-templates" cfg.user-templates;
-    }
-    // lib.mapAttrs' (
-      name: value: lib.nameValuePair "plugins/${name}/settings.json" (generateJson "${name}-settings" value)
-    ) cfg.pluginSettings;
+  configFiles = {
+    "settings.json" = generateJson "settings" cfg.settings;
+  }
+  // lib.optionalAttrs (cfg.colors != { }) {
+    "colors.json" = generateJson "colors" cfg.colors;
+  }
+  // lib.optionalAttrs (cfg.plugins != { }) {
+    "plugins.json" = generateJson "plugins" cfg.plugins;
+  }
+  // lib.optionalAttrs (cfg.user-templates != { }) {
+    "user-templates.toml" = generateToml "user-templates" cfg.user-templates;
+  }
+  // lib.mapAttrs' (
+    name: value:
+    lib.nameValuePair "plugins/${name}/settings.json" (generateJson "${name}-settings" value)
+  ) cfg.pluginSettings;
 
   etcConfigFiles = lib.mapAttrs' (
     name: source:
@@ -50,6 +50,12 @@ let
       inherit source;
     }
   ) configFiles;
+
+  effectivePackage =
+    if cfg.extraPackages == [ ] then
+      cfg.package
+    else
+      cfg.package.override { inherit (cfg) extraPackages; };
 in
 {
   options.services.quicknix-shell = {
@@ -65,6 +71,25 @@ in
       default = "graphical-session.target";
       example = "hyprland-session.target";
       description = "The systemd target for the quicknix-shell service.";
+    };
+
+    readOnlyConfig = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = ''
+        Whether QuickNix should treat the NixOS-managed config directory as read-only.
+        When enabled, the shell will not write settings.json or colors.json at runtime.
+      '';
+    };
+
+    extraPackages = lib.mkOption {
+      type = with lib.types; listOf package;
+      default = [ ];
+      example = lib.literalExpression "with pkgs; [ networkmanager wireplumber ]";
+      description = ''
+        Extra runtime packages added to the QuickNix wrapper PATH.
+        Useful for compositor-specific tools or optional helpers used by widgets.
+      '';
     };
 
     configDir = lib.mkOption {
@@ -171,21 +196,21 @@ in
       after = [ cfg.target ];
       partOf = [ cfg.target ];
       wantedBy = [ cfg.target ];
-      restartTriggers = [ cfg.package ] ++ builtins.attrValues configFiles;
+      restartTriggers = [ effectivePackage ] ++ builtins.attrValues configFiles;
 
       environment = {
-        PATH = lib.mkForce null;
         QUICKNIX_CONFIG_DIR = cfg.configDir;
         QUICKNIX_SETTINGS_FILE = "${cfg.configDir}/settings.json";
+        QUICKNIX_READ_ONLY_CONFIG = if cfg.readOnlyConfig then "1" else "0";
       };
 
       serviceConfig = {
-        ExecStart = lib.getExe cfg.package;
+        ExecStart = lib.getExe effectivePackage;
         Restart = "on-failure";
       };
     };
 
-    environment.systemPackages = [ cfg.package ];
+    environment.systemPackages = [ effectivePackage ];
     environment.etc = etcConfigFiles;
   };
 }

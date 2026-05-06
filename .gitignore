@@ -10,4 +10,5 @@ result
 build
 /debian/
 .direnv/
-.envrc
+.agents/
+skills-lock.json

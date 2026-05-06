@@ -9,12 +9,16 @@
   lefthook,
   kdePackages,
   mkShellNoCC,
+  nodejs,
   python3,
 }:
 mkShellNoCC {
   #it's faster than mkDerivation / mkShell
   packages = [
     quickshell
+
+    # node.js
+    nodejs
 
     # nix
     nixfmt # formatter

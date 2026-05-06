@@ -76,6 +76,7 @@ Item {
   readonly property bool animationsDisabled: Settings.data.general.animationDisabled
   property bool cachedShouldAnimateWidth: false
   property bool cachedShouldAnimateHeight: false
+  property bool normalResizePositionAnimationsEnabled: false
 
   // Whether blur should be applied behind this panel
   property bool blurEnabled: true
@@ -228,6 +229,9 @@ Item {
       root.buttonItem = null;
     }
 
+    root.normalResizePositionAnimationsEnabled = false;
+    normalResizePositionTimer.stop();
+
     // Set isPanelOpen to trigger content loading, but don't show yet
     isPanelOpen = true;
 
@@ -241,6 +245,9 @@ Item {
   function close() {
     // Reset immediate close flag to ensure animations work properly
     PanelService.closedImmediately = false;
+
+    root.normalResizePositionAnimationsEnabled = false;
+    normalResizePositionTimer.stop();
 
     // Start close sequence: fade opacity first
     isClosing = true;
@@ -276,6 +283,9 @@ Item {
     closeWatchdogActive = false;
     closeWatchdogTimer.stop();
 
+    root.normalResizePositionAnimationsEnabled = false;
+    normalResizePositionTimer.stop();
+
     // Don't set opacity directly as it breaks the binding
     root.isPanelVisible = false;
     root.sizeAnimationComplete = false;
@@ -309,6 +319,9 @@ Item {
     root.closeFinalized = true;
     root.closeWatchdogActive = false;
     closeWatchdogTimer.stop();
+
+    root.normalResizePositionAnimationsEnabled = false;
+    normalResizePositionTimer.stop();
 
     root.isPanelVisible = false;
     root.isPanelOpen = false;
@@ -780,6 +793,16 @@ Item {
     }
   }
 
+  Timer {
+    id: normalResizePositionTimer
+    interval: Style.animationNormal + 50
+    repeat: false
+    onTriggered: {
+      if (root.isPanelOpen && root.isPanelVisible && !root.isClosing)
+        root.normalResizePositionAnimationsEnabled = true;
+    }
+  }
+
   // Watchdog timer for close sequence (safety mechanism)
   Timer {
     id: closeWatchdogTimer
@@ -1096,6 +1119,24 @@ Item {
         return targetY;
       }
 
+      Behavior on x {
+        enabled: root.normalResizePositionAnimationsEnabled && !(root.cachedAnimateFromRight && root.cachedShouldAnimateWidth) && panelBackground.dimensionsInitialized && root.isPanelVisible && !root.isClosing && !PanelService.closedImmediately
+        NumberAnimation {
+          duration: Style.animationNormal
+          easing.type: Easing.BezierSpline
+          easing.bezierCurve: panelBackground.bezierCurve
+        }
+      }
+
+      Behavior on y {
+        enabled: root.normalResizePositionAnimationsEnabled && !(root.cachedAnimateFromBottom && root.cachedShouldAnimateHeight) && panelBackground.dimensionsInitialized && root.isPanelVisible && !root.isClosing && !PanelService.closedImmediately
+        NumberAnimation {
+          duration: Style.animationNormal
+          easing.type: Easing.BezierSpline
+          easing.bezierCurve: panelBackground.bezierCurve
+        }
+      }
+
       Behavior on width {
         enabled: !PanelService.closedImmediately
         NumberAnimation {
@@ -1315,6 +1356,7 @@ Item {
       y: panelBackground.y
       width: panelBackground.width
       height: panelBackground.height
+      clip: true
       sourceComponent: root.panelContent
 
       onLoaded: {
@@ -1341,8 +1383,10 @@ Item {
           if (root.animationsDisabled) {
             // Skip delay when animations are disabled
             root.sizeAnimationComplete = true;
+            root.normalResizePositionAnimationsEnabled = true;
           } else {
             opacityTrigger.start();
+            normalResizePositionTimer.start();
           }
 
           // Start open watchdog timer (skip when animations disabled - everything completes synchronously)

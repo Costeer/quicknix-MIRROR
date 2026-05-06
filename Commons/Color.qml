@@ -430,6 +430,11 @@ Singleton {
     watchChanges: true
     onFileChanged: scheduleExternalColorReload()
     onAdapterUpdated: {
+      if (Settings.readOnlyConfig) {
+        Logger.d("Color", "Skipping colors save because QUICKNIX_READ_ONLY_CONFIG=1");
+        return;
+      }
+
       Logger.d("Color", "Writing colors to disk");
       writeAdapter();
     }
@@ -462,6 +467,11 @@ Singleton {
 
       // Error code 2 = ENOENT (No such file or directory)
       if (error === 2 || error.toString().includes("No such file")) {
+        if (Settings.readOnlyConfig) {
+          Logger.w("Color", "colors.json is missing but QUICKNIX_READ_ONLY_CONFIG=1; not creating " + path);
+          return;
+        }
+
         // File doesn't exist, create it with default values
         writeAdapter();
       }

@@ -10,10 +10,13 @@
     wlr-randr
     imagemagick
     wget
-    (python3.withPackages (pp:
-      lib.optional calendarSupport pp.pygobject3
-      ++ pp.icalendar
-      ++ pp.recurring-ical-events
+    (python3.withPackages (
+      pp:
+      (lib.optional calendarSupport pp.pygobject3)
+      ++ [
+        pp.icalendar
+        pp.recurring-ical-events
+      ]
     ))
   ],
 

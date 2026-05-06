@@ -168,7 +168,7 @@ SmartPanel {
       }
     }
 
-    readonly property real contentPreferredWidth: Math.round((calendarMonthCard && calendarMonthCard.viewMode === "week" ? 620 : (Settings.data.location && Settings.data.location.showWeekNumberInCalendar ? 440 : 420)) * Style.uiScaleRatio)
+    readonly property real contentPreferredWidth: Math.round((calendarMonthCard && calendarMonthCard.viewMode === "week" ? 540 : (Settings.data.location && Settings.data.location.showWeekNumberInCalendar ? 440 : 420)) * Style.uiScaleRatio)
     readonly property real contentPreferredHeight: content.implicitHeight + Style.margin2L
 
     ColumnLayout {

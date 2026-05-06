@@ -61,9 +61,11 @@
         }:
         {
           imports = [ ./nix/home-module.nix ];
-          programs.quicknix-shell.package = lib.mkDefault (pkgs.callPackage ./nix/package.nix {
-            inherit version;
-          });
+          programs.quicknix-shell.package = lib.mkDefault (
+            pkgs.callPackage ./nix/package.nix {
+              inherit version;
+            }
+          );
         };
 
       nixosModules.default =
@@ -74,9 +76,11 @@
         }:
         {
           imports = [ ./nix/nixos-module.nix ];
-          services.quicknix-shell.package = lib.mkDefault (pkgs.callPackage ./nix/package.nix {
-            inherit version;
-          });
+          services.quicknix-shell.package = lib.mkDefault (
+            pkgs.callPackage ./nix/package.nix {
+              inherit version;
+            }
+          );
         };
     };
 }

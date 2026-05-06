@@ -29,6 +29,7 @@ Singleton {
   readonly property alias data: adapter
   readonly property int settingsVersion: 1
   property bool isDebug: Quickshell.env("QUICKNIX_DEBUG") === "1"
+  readonly property bool readOnlyConfig: Quickshell.env("QUICKNIX_READ_ONLY_CONFIG") === "1"
   readonly property string shellName: "quicknix"
   readonly property string homeDir: Quickshell.env("HOME")
   readonly property string configDir: SettingsPaths.ensureTrailingSlash(Quickshell.env("QUICKNIX_CONFIG_DIR") || (Quickshell.env("XDG_CONFIG_HOME") || homeDir + "/.config") + "/" + shellName + "/")
@@ -160,8 +161,14 @@ Singleton {
         return;
       }
       if (error.toString().includes("No such file") || error === 2) {
-        // File doesn't exist, create it with default values
         root.isFreshInstall = true;
+
+        if (readOnlyConfig) {
+          Logger.w("Settings", "Settings file is missing but QUICKNIX_READ_ONLY_CONFIG=1; not creating " + settingsFile);
+          return;
+        }
+
+        // File doesn't exist, create it with default values
         writeAdapter();
 
         // We started without settings, we should open the setupWizard
@@ -924,6 +931,11 @@ Singleton {
   // -----------------------------------------------------
   // Public function to trigger immediate settings saving
   function saveImmediate() {
+    if (readOnlyConfig) {
+      Logger.d("Settings", "Skipping settings save because QUICKNIX_READ_ONLY_CONFIG=1");
+      return;
+    }
+
     settingsFileView.writeAdapter();
     root.settingsSaved(); // Emit signal after saving
   }

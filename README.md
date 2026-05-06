@@ -1,29 +1,8 @@
 # QuickNix Shell
 
-**_quiet by design_**
-
-<p align="center">
-  <img src="Assets/quicknix.svg" alt="QuickNix Logo" style="width: 192px" />
-</p>
-
-<p align="center">
-  <a href="https://docs.quicknix.dev/getting-started/installation">
-    <img
-      src="https://img.shields.io/badge/🌙_Install_QuickNix-A8AEFF?style=for-the-badge&labelColor=0C0D11"
-      alt="Install QuickNix"
-      style="height: 50px"
-    />
-  </a>
-</p>
-
-<p> <br/> </p>
-
-
----
-
 ## What is QuickNix?
 
-A beautiful, minimal desktop shell for Wayland that actually gets out of your way. Built on [Quickshell](https://quickshell.outfoxxed.me/) (Qt/QML) with a warm lavender aesthetic that you can easily customize to match your vibe.
+A copy of Noctalia Shell but i removed all the things i dont need and added keyboard support 
 
 ---
 
@@ -108,11 +87,5 @@ The NixOS module defines a user service at the system level, so it is available 
 ## Wayland Compositors
 
 QuickNix is actively tested on **Niri**, **Hyprland**. Other Wayland compositors may work but could require additional configuration for compositor-specific features like workspaces and window management.
-
----
-
-## Scope
-
-QuickNix is a **MINIMAL desktop shell**, not a full desktop environment or as featured. It provides the visual layer that sits on top of your Wayland compositor (bars, panels, notifications, a dock, and widgets) but it intentionally stays within that boundary. Understanding this helps set the right expectations for feature requests.
 
 ---

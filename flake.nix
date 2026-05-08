@@ -3,12 +3,17 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    quickshell = {
+      url = "github:quickshell-mirror/quickshell";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
     {
       self,
       nixpkgs,
+      quickshell,
       ...
     }:
     let
@@ -42,11 +47,16 @@
       });
 
       overlays = {
-        default = final: prev: {
-          quicknix-shell = final.callPackage ./nix/package.nix {
-            inherit version;
-          };
-        };
+        default = nixpkgs.lib.composeManyExtensions [
+          (final: prev: {
+            quickshell = quickshell.packages.${final.stdenv.hostPlatform.system}.default;
+          })
+          (final: prev: {
+            quicknix-shell = final.callPackage ./nix/package.nix {
+              inherit version;
+            };
+          })
+        ];
       };
 
       devShells = eachSystem (system: {
@@ -61,11 +71,7 @@
         }:
         {
           imports = [ ./nix/home-module.nix ];
-          programs.quicknix-shell.package = lib.mkDefault (
-            pkgs.callPackage ./nix/package.nix {
-              inherit version;
-            }
-          );
+          programs.quicknix-shell.package = lib.mkDefault self.packages.${pkgs.stdenv.hostPlatform.system}.default;
         };
 
       nixosModules.default =
@@ -76,11 +82,7 @@
         }:
         {
           imports = [ ./nix/nixos-module.nix ];
-          services.quicknix-shell.package = lib.mkDefault (
-            pkgs.callPackage ./nix/package.nix {
-              inherit version;
-            }
-          );
+          services.quicknix-shell.package = lib.mkDefault self.packages.${pkgs.stdenv.hostPlatform.system}.default;
         };
     };
 }

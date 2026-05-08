@@ -7,6 +7,7 @@ PanelWindow {
   id: root
 
   property bool fading: false
+  property bool cancelArmed: false
 
   signal fadeCompleted
   signal cancelled
@@ -15,7 +16,10 @@ PanelWindow {
   visible: fading || overlay.opacity > 0
   WlrLayershell.layer: WlrLayershell.Overlay
   WlrLayershell.exclusiveZone: -1
-  WlrLayershell.keyboardFocus: fading ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+  // Do not take keyboard focus here: on some compositors focusing the fade
+  // layer itself counts as activity and immediately cancels the idle state.
+  // Real key/mouse activity is still detected by IdleMonitor becoming non-idle.
+  WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
   anchors {
     top: true
@@ -27,19 +31,28 @@ PanelWindow {
   function startFade() {
     Logger.i("FadeToAction", "Starting idle fade on " + (screen ? screen.name : "unknown"));
     completeTimer.stop();
+    initialInputGuard.restart();
+    cancelArmed = false;
     fading = true;
     overlay.opacity = 1;
     completeTimer.restart();
   }
 
   function cancelFade() {
-    if (!fading && overlay.opacity <= 0)
+    if ((!fading && overlay.opacity <= 0) || !cancelArmed)
       return;
     Logger.i("FadeToAction", "Cancelling idle fade on " + (screen ? screen.name : "unknown"));
     completeTimer.stop();
     fading = false;
     overlay.opacity = 0;
     cancelled();
+  }
+
+  Timer {
+    id: initialInputGuard
+    interval: 300
+    repeat: false
+    onTriggered: root.cancelArmed = true
   }
 
   Rectangle {
@@ -58,8 +71,7 @@ PanelWindow {
 
   MouseArea {
     anchors.fill: parent
-    hoverEnabled: true
-    onPositionChanged: root.cancelFade()
+    hoverEnabled: false
     onPressed: root.cancelFade()
   }
 

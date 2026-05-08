@@ -148,11 +148,12 @@ in
     idle = {
       enabled = lib.mkOption {
         type = lib.types.nullOr lib.types.bool;
-        default = null;
+        default = true;
         example = true;
         description = ''
-          Whether to enable QuickNix automatic idle handling. When set, this is
-          written to settings.idle.enabled.
+          Whether to enable QuickNix automatic idle handling. This defaults to
+          true for NixOS-managed QuickNix services and is written to
+          settings.idle.enabled. Set to false to disable automatic idle handling.
         '';
       };
 

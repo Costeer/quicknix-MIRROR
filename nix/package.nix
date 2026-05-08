@@ -6,6 +6,7 @@
     brightnessctl
     cliphist
     ddcutil
+    hyprland
     wlsunset
     wl-clipboard
     wlr-randr
@@ -32,6 +33,7 @@
   brightnessctl,
   cliphist,
   ddcutil,
+  hyprland,
   wlsunset,
   wl-clipboard,
   wlr-randr,

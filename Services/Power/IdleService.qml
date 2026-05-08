@@ -51,7 +51,7 @@ Singleton {
       return;
     }
     createMonitors();
-    Logger.i("IdleService", "Initialized");
+    Logger.i("IdleService", "Initialized enabled=" + enabled + " screenOff=" + screenOffTimeout + " lock=" + lockTimeout + " suspend=" + suspendTimeout + " inhibited=" + IdleInhibitorService.isInhibited);
   }
 
   function rearm() {
@@ -70,7 +70,9 @@ Singleton {
       screenOffMonitor = Qt.createQmlObject(monitorQml(), root, "QuickNix.ScreenOffIdleMonitor");
       screenOffMonitor.timeout = Qt.binding(() => root.screenOffTimeout > 0 ? root.screenOffTimeout : 86400);
       screenOffMonitor.enabled = Qt.binding(() => root._enableGate && root.enabled && root.screenOffTimeout > 0);
+      Logger.i("IdleService", "Screen-off monitor created timeout=" + screenOffMonitor.timeout + " enabled=" + screenOffMonitor.enabled);
       screenOffMonitor.isIdleChanged.connect(() => {
+        Logger.i("IdleService", "Screen-off idle changed: " + screenOffMonitor.isIdle);
         if (screenOffMonitor.isIdle) root.fadeToDpmsRequested();
         else {
           root.cancelFadeToDpms();
@@ -81,7 +83,9 @@ Singleton {
       lockMonitor = Qt.createQmlObject(monitorQml(), root, "QuickNix.LockIdleMonitor");
       lockMonitor.timeout = Qt.binding(() => root.lockTimeout > 0 ? root.lockTimeout : 86400);
       lockMonitor.enabled = Qt.binding(() => root._enableGate && root.enabled && root.lockTimeout > 0);
+      Logger.i("IdleService", "Lock monitor created timeout=" + lockMonitor.timeout + " enabled=" + lockMonitor.enabled);
       lockMonitor.isIdleChanged.connect(() => {
+        Logger.i("IdleService", "Lock idle changed: " + lockMonitor.isIdle + " locked=" + root.isShellLocked);
         if (lockMonitor.isIdle && !root.isShellLocked) root.fadeToLockRequested();
         else root.cancelFadeToLock();
       });
@@ -89,7 +93,9 @@ Singleton {
       suspendMonitor = Qt.createQmlObject(monitorQml(), root, "QuickNix.SuspendIdleMonitor");
       suspendMonitor.timeout = Qt.binding(() => root.suspendTimeout > 0 ? root.suspendTimeout : 86400);
       suspendMonitor.enabled = Qt.binding(() => root._enableGate && root.enabled && root.suspendTimeout > 0);
+      Logger.i("IdleService", "Suspend monitor created timeout=" + suspendMonitor.timeout + " enabled=" + suspendMonitor.enabled);
       suspendMonitor.isIdleChanged.connect(() => {
+        Logger.i("IdleService", "Suspend idle changed: " + suspendMonitor.isIdle);
         if (suspendMonitor.isIdle) root.requestSuspend();
       });
     } catch (e) {
@@ -98,16 +104,21 @@ Singleton {
   }
 
   onRequestMonitorOff: {
+    Logger.i("IdleService", "Requesting monitor off");
     monitorsOff = true;
     CompositorService.turnOffMonitors();
   }
 
   onRequestMonitorOn: {
+    Logger.i("IdleService", "Requesting monitor on");
     monitorsOff = false;
     CompositorService.turnOnMonitors();
   }
 
-  onLockRequested: CompositorService.lock()
+  onLockRequested: {
+    Logger.i("IdleService", "Requesting lock");
+    CompositorService.lock();
+  }
 
   onRequestSuspend: {
     if (Settings.data.general.lockOnSuspend) CompositorService.lockAndSuspend();

@@ -25,6 +25,7 @@ PanelWindow {
   }
 
   function startFade() {
+    Logger.i("FadeToAction", "Starting idle fade on " + (screen ? screen.name : "unknown"));
     completeTimer.stop();
     fading = true;
     overlay.opacity = 1;
@@ -34,6 +35,7 @@ PanelWindow {
   function cancelFade() {
     if (!fading && overlay.opacity <= 0)
       return;
+    Logger.i("FadeToAction", "Cancelling idle fade on " + (screen ? screen.name : "unknown"));
     completeTimer.stop();
     fading = false;
     overlay.opacity = 0;
@@ -75,6 +77,7 @@ PanelWindow {
     interval: Math.max(0, Settings.data.idle.fadeDuration * 1000)
     repeat: false
     onTriggered: {
+      Logger.i("FadeToAction", "Idle fade completed on " + (root.screen ? root.screen.name : "unknown"));
       root.fading = false;
       root.fadeCompleted();
     }

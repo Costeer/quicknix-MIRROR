@@ -27,8 +27,24 @@ let
     else
       tomlFormat.generate "quicknix-${name}.toml" value;
 
+  idleSettings = lib.filterAttrs (_: value: value != null) {
+    enabled = cfg.idle.enabled;
+    screenOffTimeout = cfg.idle.screenOffTimeout;
+    lockTimeout = cfg.idle.lockTimeout;
+    suspendTimeout = cfg.idle.suspendTimeout;
+    fadeDuration = cfg.idle.fadeDuration;
+  };
+
+  effectiveSettings =
+    if idleSettings == { } then
+      cfg.settings
+    else if builtins.isAttrs cfg.settings then
+      lib.recursiveUpdate cfg.settings { idle = idleSettings; }
+    else
+      cfg.settings;
+
   configFiles = {
-    "settings.json" = generateJson "settings" cfg.settings;
+    "settings.json" = generateJson "settings" effectiveSettings;
   }
   // lib.optionalAttrs (cfg.colors != { }) {
     "colors.json" = generateJson "colors" cfg.colors;
@@ -118,8 +134,66 @@ in
         {
           general.animationSpeed = 1.2;
           bar.position = "bottom";
+          idle = {
+            enabled = true;
+            screenOffTimeout = 600;
+            lockTimeout = 660;
+            suspendTimeout = 1800;
+            fadeDuration = 5;
+          };
         }
       '';
+    };
+
+    idle = {
+      enabled = lib.mkOption {
+        type = lib.types.nullOr lib.types.bool;
+        default = null;
+        example = true;
+        description = ''
+          Whether to enable QuickNix automatic idle handling. When set, this is
+          written to settings.idle.enabled.
+        '';
+      };
+
+      screenOffTimeout = lib.mkOption {
+        type = lib.types.nullOr lib.types.int;
+        default = null;
+        example = 600;
+        description = ''
+          Seconds of inactivity before QuickNix fades out and powers monitors
+          off. Set to 0 to disable this stage.
+        '';
+      };
+
+      lockTimeout = lib.mkOption {
+        type = lib.types.nullOr lib.types.int;
+        default = null;
+        example = 660;
+        description = ''
+          Seconds of inactivity before QuickNix fades out and locks the session
+          with WlSessionLock. Set to 0 to disable this stage.
+        '';
+      };
+
+      suspendTimeout = lib.mkOption {
+        type = lib.types.nullOr lib.types.int;
+        default = null;
+        example = 1800;
+        description = ''
+          Seconds of inactivity before QuickNix suspends the system. Set to 0 to
+          disable this stage.
+        '';
+      };
+
+      fadeDuration = lib.mkOption {
+        type = lib.types.nullOr lib.types.int;
+        default = null;
+        example = 5;
+        description = ''
+          Seconds for the fade-to-black grace period before an idle action runs.
+        '';
+      };
     };
 
     colors = lib.mkOption {
@@ -187,6 +261,10 @@ in
       {
         assertion = lib.hasPrefix "/etc/" cfg.configDir;
         message = "quicknix-shell: services.quicknix-shell.configDir must live under /etc for environment.etc deployment.";
+      }
+      {
+        assertion = idleSettings == { } || builtins.isAttrs cfg.settings;
+        message = "quicknix-shell: services.quicknix-shell.idle.* can only be used when services.quicknix-shell.settings is an attrset, not a raw string or path.";
       }
     ];
 

@@ -4,6 +4,7 @@ import Quickshell
 import qs.Commons
 
 import qs.Modules.Bar
+import qs.Modules.LockScreen
 import qs.Modules.MainScreen
 import qs.Modules.Notification
 import qs.Modules.OSD
@@ -76,7 +77,9 @@ ShellRoot {
 
         Qt.callLater(function () {
           PowerProfileService.init();
-          NotificationRulesService.init();
+          if (typeof NotificationRulesService !== "undefined")
+            NotificationRulesService.init();
+          IdleService.init();
         });
       }
 
@@ -84,6 +87,41 @@ ShellRoot {
       Notification {}
       ToastOverlay {}
       OSD {}
+      LockScreen {}
+
+      Variants {
+        model: Quickshell.screens
+        delegate: FadeToActionWindow {
+          required property ShellScreen modelData
+          screen: modelData
+          onFadeCompleted: IdleService.requestMonitorOff()
+          Component.onCompleted: {
+            IdleService.fadeToDpmsRequested.connect(startFade);
+            IdleService.cancelFadeToDpms.connect(cancelFade);
+          }
+          Component.onDestruction: {
+            IdleService.fadeToDpmsRequested.disconnect(startFade);
+            IdleService.cancelFadeToDpms.disconnect(cancelFade);
+          }
+        }
+      }
+
+      Variants {
+        model: Quickshell.screens
+        delegate: FadeToActionWindow {
+          required property ShellScreen modelData
+          screen: modelData
+          onFadeCompleted: IdleService.lockRequested()
+          Component.onCompleted: {
+            IdleService.fadeToLockRequested.connect(startFade);
+            IdleService.cancelFadeToLock.connect(cancelFade);
+          }
+          Component.onDestruction: {
+            IdleService.fadeToLockRequested.disconnect(startFade);
+            IdleService.cancelFadeToLock.disconnect(cancelFade);
+          }
+        }
+      }
     }
   }
 }

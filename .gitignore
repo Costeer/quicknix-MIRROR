@@ -12,3 +12,4 @@ build
 .direnv/
 .agents/
 skills-lock.json
+plans/

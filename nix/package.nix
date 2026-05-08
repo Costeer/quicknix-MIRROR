@@ -2,6 +2,7 @@
   version ? "dirty",
   extraPackages ? [ ],
   runtimeDeps ? [
+    bash
     brightnessctl
     cliphist
     ddcutil
@@ -24,8 +25,10 @@
   stdenvNoCC,
   # build
   qt6,
+  makeWrapper,
   quickshell,
   # runtime deps
+  bash,
   brightnessctl,
   cliphist,
   ddcutil,
@@ -84,6 +87,7 @@ stdenvNoCC.mkDerivation {
   inherit version src;
 
   nativeBuildInputs = [
+    makeWrapper
     qt6.wrapQtAppsHook
   ];
 
@@ -95,16 +99,11 @@ stdenvNoCC.mkDerivation {
   installPhase = ''
     mkdir -p $out/share/quicknix-shell $out/bin
     cp -r . $out/share/quicknix-shell
-    ln -s ${quickshell}/bin/qs $out/bin/quicknix-shell
-  '';
-
-  preFixup = ''
-    qtWrapperArgs+=(
-      --prefix PATH : ${lib.makeBinPath (runtimeDeps ++ extraPackages)}
-      --prefix XDG_DATA_DIRS : ${wayland-scanner}/share
-      --set-default QS_CONFIG_PATH "$out/share/quicknix-shell"
+    makeWrapper ${quickshell}/bin/qs $out/bin/quicknix-shell \
+      --prefix PATH : ${lib.makeBinPath (runtimeDeps ++ extraPackages)} \
+      --prefix XDG_DATA_DIRS : ${wayland-scanner}/share \
+      --set-default QS_CONFIG_PATH "$out/share/quicknix-shell" \
       ${lib.optionalString calendarSupport "--prefix GI_TYPELIB_PATH : ${giTypelibPath}"}
-    )
   '';
 
   meta = {

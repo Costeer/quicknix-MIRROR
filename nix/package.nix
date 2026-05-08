@@ -51,10 +51,13 @@ let
     filter =
       path: type:
       !(builtins.any (prefix: lib.path.hasPrefix (../. + prefix) (/. + path)) [
+        /.direnv
         /.github
         /.gitignore
         /Assets/Screenshots
         /Scripts/dev
+        /examples
+        /plans
         /nix
         /LICENSE
         /README.md

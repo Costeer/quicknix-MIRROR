@@ -220,6 +220,11 @@ in
 
     home.packages = lib.optional (cfg.package != null) cfg.package ++ lib.optional cfg.vicinaeIntegration.enable vicinaeScriptsPackage;
 
+    xdg.dataFile."vicinae/scripts/quicknix-lock" = lib.mkIf cfg.vicinaeIntegration.enable {
+      source = ../Scripts/vicinae/quicknix-lock;
+      executable = true;
+    };
+
     xdg.configFile = {
       "quicknix/settings.json" = lib.mkIf (cfg.settings != { }) {
         source = generateJson "settings" cfg.settings;

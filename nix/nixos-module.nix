@@ -72,6 +72,10 @@ let
       cfg.package
     else
       cfg.package.override { inherit (cfg) extraPackages; };
+
+  vicinaeScriptsPackage = pkgs.runCommand "quicknix-vicinae-scripts" { } ''
+    install -Dm755 ${../Scripts/vicinae/quicknix-lock} $out/share/vicinae/scripts/quicknix-lock
+  '';
 in
 {
   options.services.quicknix-shell = {
@@ -255,6 +259,12 @@ in
         }
       '';
     };
+
+    vicinaeIntegration.enable = lib.mkEnableOption ''
+      Vicinae script commands for controlling QuickNix. This installs a
+      QuickNix script command into share/vicinae/scripts so Vicinae can index it
+      when Vicinae is installed for the user.
+    '';
   };
 
   config = lib.mkIf cfg.enable {
@@ -289,7 +299,7 @@ in
       };
     };
 
-    environment.systemPackages = [ effectivePackage ];
+    environment.systemPackages = [ effectivePackage ] ++ lib.optional cfg.vicinaeIntegration.enable vicinaeScriptsPackage;
     environment.etc = etcConfigFiles;
   };
 }

@@ -17,6 +17,10 @@ let
       value
     else
       jsonFormat.generate "quicknix-${name}.json" value;
+
+  vicinaeScriptsPackage = pkgs.runCommand "quicknix-vicinae-scripts" { } ''
+    install -Dm755 ${../Scripts/vicinae/quicknix-lock} $out/share/vicinae/scripts/quicknix-lock
+  '';
 in
 {
   options.programs.quicknix-shell = {
@@ -179,6 +183,12 @@ in
         or filepath, to be written to ~/.config/quicknix/plugins/plugin-name/settings.json.
       '';
     };
+
+    vicinaeIntegration.enable = lib.mkEnableOption ''
+      Vicinae script commands for controlling QuickNix. This installs a
+      QuickNix script command into share/vicinae/scripts so Vicinae can index it
+      when Vicinae is installed for the user.
+    '';
   };
 
   config = lib.mkIf cfg.enable {
@@ -208,7 +218,7 @@ in
       Install.WantedBy = [ config.wayland.systemd.target ];
     };
 
-    home.packages = lib.optional (cfg.package != null) cfg.package;
+    home.packages = lib.optional (cfg.package != null) cfg.package ++ lib.optional cfg.vicinaeIntegration.enable vicinaeScriptsPackage;
 
     xdg.configFile = {
       "quicknix/settings.json" = lib.mkIf (cfg.settings != { }) {

@@ -114,28 +114,6 @@ Loader {
 
               Item { Layout.fillHeight: true }
 
-              Rectangle {
-                Layout.preferredWidth: 74 * Style.uiScaleRatio
-                Layout.preferredHeight: 34 * Style.uiScaleRatio
-                radius: height / 2
-                color: Qt.alpha(Color.mPrimary, 0.16)
-                border.color: Qt.alpha(Color.mPrimary, 0.34)
-                border.width: Style.borderS
-
-                RowLayout {
-                  anchors.centerIn: parent
-                  spacing: Style.marginS
-                  NIcon { icon: "lock"; pointSize: Style.fontSizeM; color: Color.mPrimary }
-                  Text {
-                    text: "Locked"
-                    color: Color.mPrimary
-                    font.family: Settings.data.ui.fontDefault
-                    font.pixelSize: Style.fontSizeS * Style.uiScaleRatio
-                    font.weight: Font.DemiBold
-                  }
-                }
-              }
-
               Text {
                 Layout.fillWidth: true
                 text: Qt.formatTime(container.now, "HH:mm")

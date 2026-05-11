@@ -1,0 +1,21 @@
+#!/usr/bin/env sh
+# @vicinae.schemaVersion 1
+# @vicinae.title Lock Session
+# @vicinae.mode silent
+# @vicinae.icon 🔒
+# @vicinae.keywords ["quicknix", "lock", "session", "screen"]
+# @vicinae.description Lock the current Wayland session with the QuickNix lockscreen.
+# @vicinae.author QuickNix
+
+set -eu
+
+if command -v quicknix-lock >/dev/null 2>&1; then
+  quicknix-lock
+elif command -v qs >/dev/null 2>&1; then
+  qs ipc call lockscreen lock
+elif command -v quickshell >/dev/null 2>&1; then
+  quickshell ipc call lockscreen lock
+else
+  echo "QuickNix lock command is unavailable" >&2
+  exit 127
+fi

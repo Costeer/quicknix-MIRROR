@@ -47,6 +47,9 @@ The flake exports a NixOS module that can manage both the user service and the s
             pluginSettings.example = {
               enabled = true;
             };
+
+            # Optional: expose QuickNix actions as Vicinae script commands.
+            vicinaeIntegration.enable = true;
           };
         })
       ];
@@ -74,12 +77,21 @@ Useful options:
 - `services.quicknix-shell.plugins`: generated `plugins.json`
 - `services.quicknix-shell.pluginSettings`: generated plugin settings
 - `services.quicknix-shell.extraPackages`: extra runtime CLIs added to the wrapper `PATH`
+- `services.quicknix-shell.vicinaeIntegration.enable`: install QuickNix Vicinae script commands, such as “Lock Session”
 
 Troubleshooting:
 
 ```sh
 systemctl --user status quicknix-shell
 journalctl --user -u quicknix-shell -b
+```
+
+Lock the session on demand:
+
+```sh
+quicknix-lock
+# or from a checkout:
+./Scripts/quicknix-lock
 ```
 
 Test the lockscreen immediately, without waiting for idle:

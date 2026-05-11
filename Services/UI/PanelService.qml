@@ -2,6 +2,7 @@ pragma Singleton
 
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import qs.Commons
 import qs.Services.Compositor
 
@@ -10,6 +11,18 @@ Singleton {
 
   // A ref. to the lockScreen, so it's accessible from anywhere.
   property var lockScreen: null
+
+  IpcHandler {
+    target: "lockscreen"
+
+    function lock(): string {
+      if (!root.lockScreen)
+        return "Lock screen is not available";
+
+      root.lockScreen.active = true;
+      return "Lock screen activated";
+    }
+  }
 
   // Panels
   property var registeredPanels: ({})

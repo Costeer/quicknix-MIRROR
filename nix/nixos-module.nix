@@ -299,6 +299,10 @@ in
       };
     };
 
+    systemd.user.services.vicinae = lib.mkIf cfg.vicinaeIntegration.enable {
+      environment.XDG_DATA_DIRS = lib.mkDefault "/run/current-system/sw/share:/usr/local/share:/usr/share";
+    };
+
     environment.systemPackages = [ effectivePackage ] ++ lib.optional cfg.vicinaeIntegration.enable vicinaeScriptsPackage;
     environment.etc = etcConfigFiles;
   };

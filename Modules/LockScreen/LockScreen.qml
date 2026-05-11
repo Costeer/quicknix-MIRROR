@@ -158,7 +158,7 @@ Loader {
                             implicitHeight: cardContent.implicitHeight + Style.marginXL * 2
                             radius: Style.radiusL * 1.4
                             color: Qt.alpha(Color.mSurfaceVariant, 0.92)
-                            border.color: Qt.alpha(passwordInput.activeFocus ? Color.mSecondary : Color.mOutline, 0.82)
+                            border.color: Qt.alpha(Color.mOutline, 0.82)
                             border.width: Style.borderS
 
                             Behavior on border.color {
@@ -217,7 +217,7 @@ Loader {
                                     Layout.preferredHeight: 54 * Style.uiScaleRatio
                                     radius: Style.iRadiusL
                                     color: Color.mSurface
-                                    border.color: passwordInput.activeFocus ? Color.mSecondary : Qt.alpha(Color.mOutline, 0.78)
+                                    border.color: Qt.alpha(Color.mOutline, 0.78)
                                     border.width: Style.borderS
 
                                     Behavior on border.color {

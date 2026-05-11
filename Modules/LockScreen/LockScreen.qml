@@ -232,12 +232,6 @@ Loader {
                                         anchors.rightMargin: Style.marginM
                                         spacing: Style.marginM
 
-                                        NIcon {
-                                            icon: "key"
-                                            pointSize: Style.fontSizeXL
-                                            color: passwordInput.activeFocus ? Color.mSecondary : Color.mOnSurfaceVariant
-                                        }
-
                                         TextField {
                                             id: passwordInput
                                             Layout.fillWidth: true

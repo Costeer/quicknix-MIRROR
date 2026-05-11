@@ -45,6 +45,7 @@ Loader {
 
         property date now: new Date()
         property bool releasing: false
+        property bool confirmPowerOff: false
 
         Timer {
             interval: 1000
@@ -70,6 +71,13 @@ Loader {
                 unloadTimer.restart();
                 container.releasing = false;
             }
+        }
+
+        Timer {
+            id: powerConfirmReset
+            interval: 3000
+            repeat: false
+            onTriggered: container.confirmPowerOff = false
         }
 
         WlSessionLock {
@@ -288,16 +296,42 @@ Loader {
                         }
 
                         Rectangle {
-                            Layout.preferredWidth: 40 * Style.uiScaleRatio
+                            Layout.preferredWidth: container.confirmPowerOff ? 148 * Style.uiScaleRatio : 40 * Style.uiScaleRatio
                             Layout.preferredHeight: 40 * Style.uiScaleRatio
                             radius: height / 2
-                            color: Qt.alpha(Color.mError, powerMouse.containsMouse ? 0.98 : 0.78)
+                            color: Qt.alpha(Color.mError, powerMouse.containsMouse || container.confirmPowerOff ? 0.98 : 0.78)
 
-                            NIcon {
-                                anchors.centerIn: parent
-                                icon: "shutdown"
-                                pointSize: Style.fontSizeXL
-                                color: Color.mOnError
+                            Behavior on Layout.preferredWidth {
+                                NumberAnimation {
+                                    duration: Style.animationFast
+                                    easing.type: Easing.OutQuart
+                                }
+                            }
+
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: container.confirmPowerOff ? Style.marginM : 0
+                                anchors.rightMargin: container.confirmPowerOff ? Style.marginS : 0
+                                spacing: Style.marginXS
+
+                                NIcon {
+                                    Layout.alignment: Qt.AlignVCenter
+                                    Layout.leftMargin: container.confirmPowerOff ? 0 : (parent.width - width) / 2
+                                    icon: "shutdown"
+                                    pointSize: Style.fontSizeXL
+                                    color: Color.mOnError
+                                }
+
+                                Text {
+                                    Layout.fillWidth: true
+                                    visible: container.confirmPowerOff
+                                    text: "Power off?"
+                                    color: Color.mOnError
+                                    font.family: Settings.data.ui.fontDefault
+                                    font.pixelSize: Style.fontSizeM * Style.uiScaleRatio
+                                    font.weight: Font.Bold
+                                    elide: Text.ElideRight
+                                }
                             }
 
                             MouseArea {
@@ -305,7 +339,14 @@ Loader {
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: Quickshell.execDetached(["sh", "-c", "systemctl poweroff || loginctl poweroff"])
+                                onClicked: {
+                                    if (container.confirmPowerOff) {
+                                        Quickshell.execDetached(["sh", "-c", "systemctl poweroff || loginctl poweroff"]);
+                                    } else {
+                                        container.confirmPowerOff = true;
+                                        powerConfirmReset.restart();
+                                    }
+                                }
                             }
                         }
                     }

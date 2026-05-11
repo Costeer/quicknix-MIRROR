@@ -2,6 +2,7 @@ pragma Singleton
 
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland
 import qs.Commons
 import qs.Services.Compositor
@@ -17,6 +18,8 @@ Singleton {
   property bool _initialized: false
   property bool _enableGate: true
   property bool monitorsOff: false
+  property bool lidClosed: false
+  property bool lidStateKnown: false
 
   readonly property bool enabled: Settings.data.idle.enabled && !IdleInhibitorService.isInhibited
   readonly property int screenOffTimeout: Settings.data.idle.screenOffTimeout
@@ -65,6 +68,26 @@ Singleton {
     return `import QtQuick\nimport Quickshell.Wayland\nIdleMonitor { enabled: false; timeout: 86400; respectInhibitors: true }`;
   }
 
+  function lidStateCommand() {
+    return "for lid in /proc/acpi/button/lid/*/state; do [ -r \"$lid\" ] && cat \"$lid\" && exit 0; done; exit 1";
+  }
+
+  function handleLidState(output) {
+    const closed = String(output || "").toLowerCase().indexOf("closed") >= 0;
+    const wasClosed = lidClosed;
+    lidStateKnown = true;
+    lidClosed = closed;
+
+    if (closed && !wasClosed) {
+      Logger.i("IdleService", "Laptop lid closed, locking session and turning off monitors");
+      CompositorService.lock();
+      lidMonitorOffTimer.restart();
+    } else if (!closed && wasClosed && monitorsOff) {
+      Logger.i("IdleService", "Laptop lid opened, turning monitors on");
+      requestMonitorOn();
+    }
+  }
+
   function createMonitors() {
     try {
       screenOffMonitor = Qt.createQmlObject(monitorQml(), root, "QuickNix.ScreenOffIdleMonitor");
@@ -76,7 +99,7 @@ Singleton {
         if (screenOffMonitor.isIdle) root.fadeToDpmsRequested();
         else {
           root.cancelFadeToDpms();
-          if (root.monitorsOff) root.requestMonitorOn();
+          if (root.monitorsOff && !root.lidClosed) root.requestMonitorOn();
         }
       });
 
@@ -103,6 +126,31 @@ Singleton {
     }
   }
 
+  Process {
+    id: lidStateProcess
+    command: ["sh", "-c", root.lidStateCommand()]
+    running: false
+    stdout: StdioCollector {
+      onStreamFinished: root.handleLidState(this.text)
+    }
+  }
+
+  Timer {
+    id: lidPollTimer
+    interval: 500
+    repeat: true
+    running: true
+    triggeredOnStart: true
+    onTriggered: if (!lidStateProcess.running) lidStateProcess.running = true
+  }
+
+  Timer {
+    id: lidMonitorOffTimer
+    interval: 150
+    repeat: false
+    onTriggered: root.requestMonitorOff()
+  }
+
   onRequestMonitorOff: {
     Logger.i("IdleService", "Requesting monitor off");
     monitorsOff = true;
@@ -110,6 +158,10 @@ Singleton {
   }
 
   onRequestMonitorOn: {
+    if (lidClosed) {
+      Logger.i("IdleService", "Ignoring monitor-on request while laptop lid is closed");
+      return;
+    }
     Logger.i("IdleService", "Requesting monitor on");
     monitorsOff = false;
     CompositorService.turnOnMonitors();

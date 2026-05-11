@@ -1,6 +1,8 @@
 # Credits
+This is basically a fork of Noctallia shell that strips out all the stuff i didnt need :3
 
-QuickNix Shell is made possible by the incredible work of many open-source projects and contributors.
+# [Original Credits]
+
 
 ## Design & Branding
 

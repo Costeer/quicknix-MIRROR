@@ -82,6 +82,14 @@ systemctl --user status quicknix-shell
 journalctl --user -u quicknix-shell -b
 ```
 
+Test the lockscreen immediately, without waiting for idle:
+
+```sh
+./Scripts/test-lockscreen
+# or, when installed:
+QUICKNIX_TEST_LOCKSCREEN=1 quicknix-shell
+```
+
 The NixOS module defines a user service at the system level, so it is available to graphical users on the host. Use the Home Manager module if you need strictly per-user ownership of the service and mutable `~/.config/quicknix` files.
 
 ## Wayland Compositors

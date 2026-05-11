@@ -1,0 +1,26 @@
+#!/usr/bin/env sh
+set -eu
+
+# Launch QuickNix with the lock surface opened immediately, so the lockscreen can
+# be styled and tested without waiting for the idle timeout.
+#
+# If quicknix-shell is installed, use it. From a checkout, this falls back to qs
+# with QS_CONFIG_PATH pointed at the repository root.
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
+
+export QUICKNIX_TEST_LOCKSCREEN=1
+
+if command -v quicknix-shell >/dev/null 2>&1; then
+  exec quicknix-shell
+fi
+
+if command -v qs >/dev/null 2>&1; then
+  export QS_CONFIG_PATH="${QS_CONFIG_PATH:-$REPO_ROOT}"
+  exec qs
+fi
+
+echo "Could not find quicknix-shell or qs in PATH." >&2
+echo "Run this from a dev shell that provides Quickshell, or install QuickNix." >&2
+exit 127

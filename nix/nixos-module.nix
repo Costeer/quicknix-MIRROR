@@ -304,6 +304,7 @@ in
     };
 
     environment.systemPackages = [ effectivePackage ] ++ lib.optional cfg.vicinaeIntegration.enable vicinaeScriptsPackage;
+    environment.pathsToLink = lib.optional cfg.vicinaeIntegration.enable "/share/vicinae";
     environment.etc = etcConfigFiles;
   };
 }

@@ -4,6 +4,8 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Wayland
 import qs.Commons
+import qs.Services.Hardware
+import qs.Services.Media
 import qs.Services.UI
 import qs.Widgets
 
@@ -148,6 +150,164 @@ Loader {
                         y: parent.height * 0.58
                         color: Color.mTertiary
                         opacity: 0.10
+                    }
+
+                    RowLayout {
+                        id: lockscreenControls
+                        anchors.top: parent.top
+                        anchors.right: parent.right
+                        anchors.topMargin: Math.max(18, Math.min(parent.width, parent.height) * 0.035)
+                        anchors.rightMargin: Math.max(18, Math.min(parent.width, parent.height) * 0.035)
+                        spacing: Style.marginS
+
+                        function iconButtonWidth(text) {
+                            return Math.max(44 * Style.uiScaleRatio, text.length > 0 ? 74 * Style.uiScaleRatio : 44 * Style.uiScaleRatio);
+                        }
+
+                        Rectangle {
+                            visible: BatteryService.batteryPresent
+                            Layout.preferredWidth: lockscreenControls.iconButtonWidth(batteryText.text)
+                            Layout.preferredHeight: 40 * Style.uiScaleRatio
+                            radius: height / 2
+                            color: Qt.alpha(Color.mSurfaceVariant, batteryMouse.containsMouse ? 0.98 : 0.76)
+
+                            RowLayout {
+                                anchors.centerIn: parent
+                                spacing: Style.marginXS
+
+                                NIcon {
+                                    icon: BatteryService.batteryIcon
+                                    pointSize: Style.fontSizeXL
+                                    color: (BatteryService.batteryCharging || BatteryService.batteryPluggedIn) ? Color.mPrimary : Color.mOnSurface
+                                }
+
+                                Text {
+                                    id: batteryText
+                                    text: BatteryService.batteryReady ? Math.round(BatteryService.batteryPercentage) + "%" : ""
+                                    color: Color.mOnSurface
+                                    font.family: Settings.data.ui.fontDefault
+                                    font.pixelSize: Style.fontSizeM * Style.uiScaleRatio
+                                    font.weight: Font.Medium
+                                }
+                            }
+
+                            MouseArea {
+                                id: batteryMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: PanelService.getPanel("batteryPanel", surface.screen)?.toggle(parent)
+                            }
+                        }
+
+                        Rectangle {
+                            id: brightnessControl
+                            property var monitor: BrightnessService.getMonitorForScreen(surface.screen)
+                            visible: monitor && monitor.brightnessControlAvailable
+                            Layout.preferredWidth: lockscreenControls.iconButtonWidth(brightnessText.text)
+                            Layout.preferredHeight: 40 * Style.uiScaleRatio
+                            radius: height / 2
+                            color: Qt.alpha(Color.mSurfaceVariant, brightnessMouse.containsMouse ? 0.98 : 0.76)
+
+                            RowLayout {
+                                anchors.centerIn: parent
+                                spacing: Style.marginXS
+
+                                NIcon {
+                                    icon: !brightnessControl.monitor || brightnessControl.monitor.brightness <= 0.001 ? "sun-off" : brightnessControl.monitor.brightness <= 0.5 ? "brightness-low" : "brightness-high"
+                                    pointSize: Style.fontSizeXL
+                                    color: Color.mOnSurface
+                                }
+
+                                Text {
+                                    id: brightnessText
+                                    text: brightnessControl.monitor && !isNaN(brightnessControl.monitor.brightness) ? Math.round(brightnessControl.monitor.brightness * 100) + "%" : ""
+                                    color: Color.mOnSurface
+                                    font.family: Settings.data.ui.fontDefault
+                                    font.pixelSize: Style.fontSizeM * Style.uiScaleRatio
+                                    font.weight: Font.Medium
+                                }
+                            }
+
+                            MouseArea {
+                                id: brightnessMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onWheel: wheel => {
+                                    if (!brightnessControl.monitor || !brightnessControl.monitor.brightnessControlAvailable)
+                                        return;
+                                    if (wheel.angleDelta.y > 0)
+                                        brightnessControl.monitor.increaseBrightness();
+                                    else if (wheel.angleDelta.y < 0)
+                                        brightnessControl.monitor.decreaseBrightness();
+                                }
+                                onClicked: PanelService.getPanel("brightnessPanel", surface.screen)?.toggle(parent)
+                            }
+                        }
+
+                        Rectangle {
+                            Layout.preferredWidth: lockscreenControls.iconButtonWidth(volumeText.text)
+                            Layout.preferredHeight: 40 * Style.uiScaleRatio
+                            radius: height / 2
+                            color: Qt.alpha(Color.mSurfaceVariant, volumeMouse.containsMouse ? 0.98 : 0.76)
+
+                            RowLayout {
+                                anchors.centerIn: parent
+                                spacing: Style.marginXS
+
+                                NIcon {
+                                    icon: AudioService.getOutputIcon()
+                                    pointSize: Style.fontSizeXL
+                                    color: Color.mOnSurface
+                                }
+
+                                Text {
+                                    id: volumeText
+                                    text: Math.round(Math.min(Settings.data.audio.volumeOverdrive ? 1.5 : 1.0, AudioService.volume) * 100) + "%"
+                                    color: Color.mOnSurface
+                                    font.family: Settings.data.ui.fontDefault
+                                    font.pixelSize: Style.fontSizeM * Style.uiScaleRatio
+                                    font.weight: Font.Medium
+                                }
+                            }
+
+                            MouseArea {
+                                id: volumeMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onWheel: wheel => {
+                                    if (wheel.angleDelta.y > 0)
+                                        AudioService.increaseVolume();
+                                    else if (wheel.angleDelta.y < 0)
+                                        AudioService.decreaseVolume();
+                                }
+                                onClicked: AudioService.setOutputMuted(!AudioService.muted)
+                            }
+                        }
+
+                        Rectangle {
+                            Layout.preferredWidth: 40 * Style.uiScaleRatio
+                            Layout.preferredHeight: 40 * Style.uiScaleRatio
+                            radius: height / 2
+                            color: Qt.alpha(Color.mError, powerMouse.containsMouse ? 0.98 : 0.78)
+
+                            NIcon {
+                                anchors.centerIn: parent
+                                icon: "shutdown"
+                                pointSize: Style.fontSizeXL
+                                color: Color.mOnError
+                            }
+
+                            MouseArea {
+                                id: powerMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: Quickshell.execDetached(["sh", "-c", "systemctl poweroff || loginctl poweroff"])
+                            }
+                        }
                     }
 
                     RowLayout {

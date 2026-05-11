@@ -198,14 +198,6 @@ Loader {
                             implicitHeight: cardContent.implicitHeight + Style.marginXL * 2
                             radius: Style.radiusL * 1.4
                             color: Qt.alpha(Color.mSurfaceVariant, 0.92)
-                            border.color: Qt.alpha(Color.mOutline, 0.82)
-                            border.width: Style.borderS
-
-                            Behavior on border.color {
-                                ColorAnimation {
-                                    duration: Style.animationFast
-                                }
-                            }
 
                             ColumnLayout {
                                 id: cardContent
@@ -255,16 +247,8 @@ Loader {
                                 Rectangle {
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: 54 * Style.uiScaleRatio
-                                    radius: Style.iRadiusL
+                                    radius: height / 2
                                     color: Color.mSurface
-                                    border.color: Qt.alpha(Color.mOutline, 0.78)
-                                    border.width: Style.borderS
-
-                                    Behavior on border.color {
-                                        ColorAnimation {
-                                            duration: Style.animationFast
-                                        }
-                                    }
 
                                     RowLayout {
                                         anchors.fill: parent
@@ -295,38 +279,6 @@ Loader {
                                     }
                                 }
 
-                                Rectangle {
-                                    Layout.fillWidth: true
-                                    Layout.preferredHeight: 48 * Style.uiScaleRatio
-                                    radius: Style.iRadiusL
-                                    color: lockContext.busy ? Qt.alpha(Color.mPrimary, 0.52) : Color.mPrimary
-                                    opacity: unlockMouse.containsMouse && !lockContext.busy ? 0.88 : 1.0
-
-                                    Behavior on opacity {
-                                        NumberAnimation {
-                                            duration: Style.animationFast
-                                            easing.type: Easing.OutQuart
-                                        }
-                                    }
-
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: lockContext.busy ? "Unlocking…" : "Unlock"
-                                        color: Color.mOnPrimary
-                                        font.family: Settings.data.ui.fontDefault
-                                        font.pixelSize: Style.fontSizeL * Style.uiScaleRatio
-                                        font.weight: Font.Bold
-                                    }
-
-                                    MouseArea {
-                                        id: unlockMouse
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                        enabled: !lockContext.busy
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: lockContext.tryUnlock()
-                                    }
-                                }
 
                                 Text {
                                     Layout.fillWidth: true

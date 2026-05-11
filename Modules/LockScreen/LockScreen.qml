@@ -42,6 +42,7 @@ Loader {
         id: container
 
         property date now: new Date()
+        property bool releasing: false
 
         Timer {
             interval: 1000
@@ -53,8 +54,19 @@ Loader {
         LockContext {
             id: lockContext
             onUnlocked: {
+                container.releasing = true;
+                unlockTransitionTimer.restart();
+            }
+        }
+
+        Timer {
+            id: unlockTransitionTimer
+            interval: 520
+            repeat: false
+            onTriggered: {
                 sessionLock.locked = false;
                 unloadTimer.restart();
+                container.releasing = false;
             }
         }
 
@@ -64,11 +76,39 @@ Loader {
 
             WlSessionLockSurface {
                 id: surface
-                color: Color.mSurface
+                color: Qt.alpha(Color.mSurface, container.releasing ? 0 : 1)
 
                 Rectangle {
                     anchors.fill: parent
                     color: Color.mSurface
+                    opacity: container.releasing ? 0 : 1
+
+                    Behavior on opacity {
+                        NumberAnimation {
+                            duration: 520
+                            easing.type: Easing.OutQuart
+                        }
+                    }
+
+                    Item {
+                        id: lockScene
+                        anchors.fill: parent
+                        opacity: container.releasing ? 0 : 1
+                        scale: container.releasing ? 1.035 : 1
+
+                        Behavior on opacity {
+                            NumberAnimation {
+                                duration: 700
+                                easing.type: Easing.OutQuart
+                            }
+                        }
+
+                        Behavior on scale {
+                            NumberAnimation {
+                                duration: 520
+                                easing.type: Easing.OutQuart
+                            }
+                        }
 
                     Rectangle {
                         id: ambientWash
@@ -184,7 +224,7 @@ Loader {
                                         color: Qt.alpha(Color.mSecondary, 0.18)
                                         NIcon {
                                             anchors.centerIn: parent
-                                            icon: "fingerprint"
+                                            icon: "lock"
                                             pointSize: Style.fontSizeXXXL
                                             color: Color.mSecondary
                                         }
@@ -300,6 +340,7 @@ Loader {
                                 }
                             }
                         }
+                    }
                     }
                 }
             }

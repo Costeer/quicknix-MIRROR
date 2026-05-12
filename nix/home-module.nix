@@ -20,6 +20,7 @@ let
 
   vicinaeScriptsPackage = pkgs.runCommand "quicknix-vicinae-scripts" { } ''
     install -Dm755 ${../Scripts/vicinae/quicknix-lock} $out/share/vicinae/scripts/quicknix-lock
+    install -Dm755 ${../Scripts/vicinae/quicknix-lock-hibernate} $out/share/vicinae/scripts/quicknix-lock-hibernate
   '';
 in
 {
@@ -220,9 +221,16 @@ in
 
     home.packages = lib.optional (cfg.package != null) cfg.package ++ lib.optional cfg.vicinaeIntegration.enable vicinaeScriptsPackage;
 
-    xdg.dataFile."vicinae/scripts/quicknix-lock" = lib.mkIf cfg.vicinaeIntegration.enable {
-      source = ../Scripts/vicinae/quicknix-lock;
-      executable = true;
+    xdg.dataFile = {
+      "vicinae/scripts/quicknix-lock" = lib.mkIf cfg.vicinaeIntegration.enable {
+        source = ../Scripts/vicinae/quicknix-lock;
+        executable = true;
+      };
+
+      "vicinae/scripts/quicknix-lock-hibernate" = lib.mkIf cfg.vicinaeIntegration.enable {
+        source = ../Scripts/vicinae/quicknix-lock-hibernate;
+        executable = true;
+      };
     };
 
     xdg.configFile = {

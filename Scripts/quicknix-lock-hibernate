@@ -1,0 +1,21 @@
+#!/usr/bin/env sh
+set -eu
+
+# Ask the running QuickNix shell instance to lock the session and hibernate.
+# From a checkout, this points qs IPC at the repository config. Installed package
+# wrappers set QS_CONFIG_PATH to the packaged shell path before calling this.
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
+
+if command -v qs >/dev/null 2>&1; then
+  QS=qs
+elif command -v quickshell >/dev/null 2>&1; then
+  QS=quickshell
+else
+  echo "Could not find qs or quickshell in PATH." >&2
+  exit 127
+fi
+
+export QS_CONFIG_PATH="${QS_CONFIG_PATH:-$REPO_ROOT}"
+exec "$QS" ipc call lockscreen lockAndHibernate

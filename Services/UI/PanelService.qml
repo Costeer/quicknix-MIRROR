@@ -22,6 +22,12 @@ Singleton {
       root.lockScreen.active = true;
       return "Lock screen activated";
     }
+
+    function lockAndHibernate(): string {
+      CompositorService.lock();
+      Quickshell.execDetached(["sh", "-c", "systemctl hibernate || loginctl hibernate"]);
+      return "Lock and hibernate requested";
+    }
   }
 
   // Panels

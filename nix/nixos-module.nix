@@ -77,6 +77,7 @@ let
 
   vicinaeScriptsPackage = pkgs.runCommand "quicknix-vicinae-scripts" { } ''
     install -Dm755 ${../Scripts/vicinae/quicknix-lock} $out/share/vicinae/scripts/quicknix-lock
+    install -Dm755 ${../Scripts/vicinae/quicknix-lock-hibernate} $out/share/vicinae/scripts/quicknix-lock-hibernate
   '';
 in
 {

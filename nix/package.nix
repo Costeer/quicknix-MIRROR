@@ -110,6 +110,10 @@ stdenvNoCC.mkDerivation {
     makeWrapper $out/share/quicknix-shell/Scripts/quicknix-lock $out/bin/quicknix-lock \
       --prefix PATH : ${lib.makeBinPath ([ quickshell ] ++ runtimeDeps ++ extraPackages)} \
       --set-default QS_CONFIG_PATH "$out/share/quicknix-shell"
+
+    makeWrapper $out/share/quicknix-shell/Scripts/quicknix-lock-hibernate $out/bin/quicknix-lock-hibernate \
+      --prefix PATH : ${lib.makeBinPath ([ quickshell ] ++ runtimeDeps ++ extraPackages)} \
+      --set-default QS_CONFIG_PATH "$out/share/quicknix-shell"
   '';
 
   meta = {

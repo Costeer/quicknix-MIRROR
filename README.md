@@ -2,13 +2,49 @@
 
 ## What is QuickNix?
 
-A copy of Noctalia Shell but i removed all the things i dont need and added keyboard support 
+QuickNix Shell is a personal Wayland desktop shell built with Quickshell. It started as a stripped-down Noctalia Shell variant with the pieces I use, keyboard-oriented interaction, and Nix-first configuration.
+
+> **Nix-only project:** QuickNix is meant to be installed and configured with Nix. The supported installation paths are the NixOS module, the Home Manager module, or the exported Nix package. Non-Nix installation is not a supported target.
 
 ---
 
-## NixOS flakes without Home Manager
+## Requirements
 
-The flake exports a NixOS module that can manage both the user service and the shell configuration declaratively.
+- Nix with flakes enabled.
+- A Wayland compositor. QuickNix is actively tested on **Niri** and **Hyprland**.
+- For a full desktop experience, include the helper CLIs your widgets/compositor setup needs, for example `networkmanager`, `wireplumber`, compositor tools, brightness tools, etc. The NixOS module can add these through `extraPackages`.
+
+---
+
+## Flake input
+
+Add QuickNix as a flake input:
+
+```nix
+{
+  inputs = {
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+
+    quicknix-shell = {
+      url = "github:quicknix-dev/quicknix-shell";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+  };
+}
+```
+
+The flake exports:
+
+- `packages.<system>.default`: the `quicknix-shell` package
+- `nixosModules.default`: NixOS module
+- `homeModules.default`: Home Manager module
+- `overlays.default`: overlay exposing `pkgs.quicknix-shell`
+
+---
+
+## NixOS installation
+
+Use the NixOS module when you want the system configuration to manage the QuickNix user service and write declarative configuration under `/etc/xdg/quicknix`.
 
 ```nix
 {
@@ -41,9 +77,11 @@ The flake exports a NixOS module that can manage both the user service and the s
               bar.position = "bottom";
               general.animationSpeed = 1.2;
             };
+
             colors = {
               mPrimary = "#a8aeff";
             };
+
             pluginSettings.example = {
               enabled = true;
             };
@@ -58,7 +96,62 @@ The flake exports a NixOS module that can manage both the user service and the s
 }
 ```
 
-This writes configuration into `/etc/xdg/quicknix` and starts a `systemd.user` service with `QUICKNIX_CONFIG_DIR` pointing there, so Home Manager is not required.
+### NixOS options
+
+Important options:
+
+- `services.quicknix-shell.enable`: enable the system-defined user service.
+- `services.quicknix-shell.package`: package to run, defaults to the flake package.
+- `services.quicknix-shell.target`: systemd user target, default `graphical-session.target`.
+- `services.quicknix-shell.configDir`: config directory, default `/etc/xdg/quicknix`.
+- `services.quicknix-shell.readOnlyConfig`: default `true`, prevents runtime writes to NixOS-managed config.
+- `services.quicknix-shell.settings`: generated `settings.json`.
+- `services.quicknix-shell.colors`: generated `colors.json`.
+- `services.quicknix-shell.plugins`: generated `plugins.json`.
+- `services.quicknix-shell.pluginSettings`: generated per-plugin settings files.
+- `services.quicknix-shell.extraPackages`: extra runtime CLIs added to the QuickNix wrapper `PATH`.
+- `services.quicknix-shell.vicinaeIntegration.enable`: install QuickNix Vicinae script commands, such as “Lock Session” and “Lock and Hibernate”.
+
+### NixOS idle and power options
+
+The NixOS module exposes common idle settings directly and writes them into `settings.idle`:
+
+```nix
+services.quicknix-shell = {
+  enable = true;
+
+  idle = {
+    enabled = true;
+
+    # Seconds of inactivity before turning monitors off. 0 disables this stage.
+    screenOffTimeout = 600;
+
+    # Seconds of inactivity before locking the session. 0 disables this stage.
+    lockTimeout = 660;
+
+    # Seconds of inactivity before suspending. 0 disables this stage.
+    suspendTimeout = 1800;
+
+    # Seconds of inactivity before hibernating. 0 disables this stage.
+    hibernateTimeout = 3600;
+
+    # Seconds after laptop lid close before hibernating. 0 disables this stage.
+    # Lid close still locks immediately and turns the screen off first.
+    lidHibernateTimeout = 900;
+
+    # Fade-to-black grace period before idle actions run.
+    fadeDuration = 5;
+  };
+};
+```
+
+Recommended ordering:
+
+```text
+screenOffTimeout < lockTimeout < suspendTimeout < hibernateTimeout
+```
+
+For laptops, `lidHibernateTimeout` can be much shorter than normal hibernation, for example 300 to 900 seconds.
 
 ### NixOS integration contract
 
@@ -68,18 +161,111 @@ The NixOS module sets these environment variables for the service:
 - `QUICKNIX_SETTINGS_FILE`: settings file, default `/etc/xdg/quicknix/settings.json`
 - `QUICKNIX_READ_ONLY_CONFIG`: `1` by default; prevents runtime writes to NixOS-managed config
 
-Useful options:
+The NixOS module defines a user service at the system level, so it is available to graphical users on the host. Use the Home Manager module if you need strictly per-user ownership of the service and mutable `~/.config/quicknix` files.
 
-- `services.quicknix-shell.enable`: enable the user service
-- `services.quicknix-shell.target`: systemd user target, default `graphical-session.target`
-- `services.quicknix-shell.settings`: generated `settings.json`
-- `services.quicknix-shell.colors`: generated `colors.json`
-- `services.quicknix-shell.plugins`: generated `plugins.json`
-- `services.quicknix-shell.pluginSettings`: generated plugin settings
-- `services.quicknix-shell.extraPackages`: extra runtime CLIs added to the wrapper `PATH`
-- `services.quicknix-shell.vicinaeIntegration.enable`: install QuickNix Vicinae script commands, such as “Lock Session”
+---
 
-Troubleshooting:
+## Home Manager installation
+
+Use the Home Manager module when you want QuickNix to be owned entirely by a user and configured under `~/.config/quicknix`.
+
+```nix
+{
+  inputs.quicknix-shell = {
+    url = "github:quicknix-dev/quicknix-shell";
+    inputs.nixpkgs.follows = "nixpkgs";
+  };
+
+  outputs = { self, nixpkgs, home-manager, quicknix-shell, ... }: {
+    homeConfigurations."costeer" = home-manager.lib.homeManagerConfiguration {
+      pkgs = nixpkgs.legacyPackages.x86_64-linux;
+      modules = [
+        quicknix-shell.homeModules.default
+        ({ pkgs, ... }: {
+          programs.quicknix-shell = {
+            enable = true;
+            systemd.enable = true;
+
+            settings = {
+              bar.position = "bottom";
+              general.animationSpeed = 1.2;
+
+              idle = {
+                enabled = true;
+                screenOffTimeout = 600;
+                lockTimeout = 660;
+                suspendTimeout = 1800;
+                hibernateTimeout = 3600;
+                lidHibernateTimeout = 900;
+                fadeDuration = 5;
+              };
+            };
+
+            colors = {
+              mPrimary = "#a8aeff";
+            };
+
+            plugins = {
+              sources = [ ];
+              states = { };
+              version = 2;
+            };
+
+            pluginSettings.example = {
+              enabled = true;
+            };
+
+            # Optional: install QuickNix Vicinae scripts into the user's data dir.
+            vicinaeIntegration.enable = true;
+          };
+        })
+      ];
+    };
+  };
+}
+```
+
+### Home Manager options
+
+Important options:
+
+- `programs.quicknix-shell.enable`: install/manage QuickNix for the user.
+- `programs.quicknix-shell.systemd.enable`: create a user systemd service.
+- `programs.quicknix-shell.package`: package to install, defaults to the flake package.
+- `programs.quicknix-shell.settings`: generated `~/.config/quicknix/settings.json`.
+- `programs.quicknix-shell.colors`: generated `~/.config/quicknix/colors.json`.
+- `programs.quicknix-shell.plugins`: generated `~/.config/quicknix/plugins.json`.
+- `programs.quicknix-shell.pluginSettings`: generated per-plugin settings files.
+- `programs.quicknix-shell.user-templates`: generated `user-templates.toml`.
+- `programs.quicknix-shell.vicinaeIntegration.enable`: install QuickNix Vicinae script commands, such as “Lock Session” and “Lock and Hibernate”.
+
+Home Manager does not currently expose a separate `programs.quicknix-shell.idle` convenience option. Put idle settings under `programs.quicknix-shell.settings.idle` as shown above.
+
+---
+
+## Using the package directly
+
+If you only want the package, add the overlay or reference the flake package directly:
+
+```nix
+environment.systemPackages = [
+  inputs.quicknix-shell.packages.${pkgs.stdenv.hostPlatform.system}.default
+];
+```
+
+Then run:
+
+```sh
+quicknix-shell
+```
+
+For declarative desktop sessions, prefer the NixOS or Home Manager module so the service and config files are managed consistently.
+
+---
+
+## Runtime commands and troubleshooting
+
+Check service status:
 
 ```sh
 systemctl --user status quicknix-shell
@@ -94,6 +280,14 @@ quicknix-lock
 ./Scripts/quicknix-lock
 ```
 
+Lock and hibernate on demand:
+
+```sh
+quicknix-lock-hibernate
+# or from a checkout:
+./Scripts/quicknix-lock-hibernate
+```
+
 Test the lockscreen immediately, without waiting for idle:
 
 ```sh
@@ -102,10 +296,15 @@ Test the lockscreen immediately, without waiting for idle:
 QUICKNIX_TEST_LOCKSCREEN=1 quicknix-shell
 ```
 
-The NixOS module defines a user service at the system level, so it is available to graphical users on the host. Use the Home Manager module if you need strictly per-user ownership of the service and mutable `~/.config/quicknix` files.
+When testing from a checkout and you want to force the local tree rather than an installed package:
 
-## Wayland Compositors
-
-QuickNix is actively tested on **Niri**, **Hyprland**. Other Wayland compositors may work but could require additional configuration for compositor-specific features like workspaces and window management.
+```sh
+cd /path/to/quickNix
+QUICKNIX_TEST_LOCKSCREEN=1 QS_CONFIG_PATH="$PWD" qs
+```
 
 ---
+
+## Wayland compositors
+
+QuickNix is actively tested on **Niri** and **Hyprland**. Other Wayland compositors may work but could require additional configuration for compositor-specific features like workspaces, monitor power control, and window management.

@@ -1,0 +1,21 @@
+#!/usr/bin/env sh
+# @vicinae.schemaVersion 1
+# @vicinae.title Lock and Hibernate
+# @vicinae.mode silent
+# @vicinae.icon 💤
+# @vicinae.keywords ["quicknix", "lock", "hibernate", "hybernate", "sleep", "power"]
+# @vicinae.description Lock the current Wayland session with QuickNix, then hibernate the system.
+# @vicinae.author QuickNix
+
+set -eu
+
+if command -v quicknix-lock-hibernate >/dev/null 2>&1; then
+  quicknix-lock-hibernate
+elif command -v qs >/dev/null 2>&1; then
+  qs ipc call lockscreen lockAndHibernate
+elif command -v quickshell >/dev/null 2>&1; then
+  quickshell ipc call lockscreen lockAndHibernate
+else
+  echo "QuickNix lock and hibernate command is unavailable" >&2
+  exit 127
+fi

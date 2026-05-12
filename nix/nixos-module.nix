@@ -32,6 +32,8 @@ let
     screenOffTimeout = cfg.idle.screenOffTimeout;
     lockTimeout = cfg.idle.lockTimeout;
     suspendTimeout = cfg.idle.suspendTimeout;
+    hibernateTimeout = cfg.idle.hibernateTimeout;
+    lidHibernateTimeout = cfg.idle.lidHibernateTimeout;
     fadeDuration = cfg.idle.fadeDuration;
   };
 
@@ -143,6 +145,8 @@ in
             screenOffTimeout = 600;
             lockTimeout = 660;
             suspendTimeout = 1800;
+            hibernateTimeout = 3600;
+            lidHibernateTimeout = 900;
             fadeDuration = 5;
           };
         }
@@ -188,6 +192,27 @@ in
         description = ''
           Seconds of inactivity before QuickNix suspends the system. Set to 0 to
           disable this stage.
+        '';
+      };
+
+      hibernateTimeout = lib.mkOption {
+        type = lib.types.nullOr lib.types.int;
+        default = null;
+        example = 3600;
+        description = ''
+          Seconds of inactivity before QuickNix hibernates the system. Set to 0
+          to disable this stage.
+        '';
+      };
+
+      lidHibernateTimeout = lib.mkOption {
+        type = lib.types.nullOr lib.types.int;
+        default = null;
+        example = 900;
+        description = ''
+          Seconds after the laptop lid closes before QuickNix hibernates the
+          system. The lid still locks immediately and turns monitors off first.
+          Set to 0 to disable lid-close hibernation.
         '';
       };
 

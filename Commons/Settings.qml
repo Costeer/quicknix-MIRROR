@@ -799,6 +799,8 @@ Singleton {
       property int screenOffTimeout: 600    // seconds, 0 = disabled
       property int lockTimeout: 660         // seconds, 0 = disabled
       property int suspendTimeout: 1800     // seconds, 0 = disabled
+      property int hibernateTimeout: 3600   // seconds, 0 = disabled
+      property int lidHibernateTimeout: 900 // seconds after lid close, 0 = disabled
       property int fadeDuration: 5       // seconds of fade-to-black before action fires
       property string screenOffCommand: ""
       property string lockCommand: ""

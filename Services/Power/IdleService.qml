@@ -25,6 +25,8 @@ Singleton {
   readonly property int screenOffTimeout: Settings.data.idle.screenOffTimeout
   readonly property int lockTimeout: Settings.data.idle.lockTimeout
   readonly property int suspendTimeout: Settings.data.idle.suspendTimeout
+  readonly property int hibernateTimeout: Settings.data.idle.hibernateTimeout || 0
+  readonly property int lidHibernateTimeout: Settings.data.idle.lidHibernateTimeout || 0
   readonly property bool isShellLocked: PanelService.lockScreen ? PanelService.lockScreen.active : false
 
   signal lockRequested
@@ -35,14 +37,18 @@ Singleton {
   signal requestMonitorOff
   signal requestMonitorOn
   signal requestSuspend
+  signal requestHibernate
 
   property var screenOffMonitor: null
   property var lockMonitor: null
   property var suspendMonitor: null
+  property var hibernateMonitor: null
 
   onScreenOffTimeoutChanged: rearm()
   onLockTimeoutChanged: rearm()
   onSuspendTimeoutChanged: rearm()
+  onHibernateTimeoutChanged: rearm()
+  onLidHibernateTimeoutChanged: if (lidClosed) restartLidHibernateTimer()
   onEnabledChanged: rearm()
 
   function init() {
@@ -54,7 +60,7 @@ Singleton {
       return;
     }
     createMonitors();
-    Logger.i("IdleService", "Initialized enabled=" + enabled + " screenOff=" + screenOffTimeout + " lock=" + lockTimeout + " suspend=" + suspendTimeout + " inhibited=" + IdleInhibitorService.isInhibited);
+    Logger.i("IdleService", "Initialized enabled=" + enabled + " screenOff=" + screenOffTimeout + " lock=" + lockTimeout + " suspend=" + suspendTimeout + " hibernate=" + hibernateTimeout + " lidHibernate=" + lidHibernateTimeout + " inhibited=" + IdleInhibitorService.isInhibited);
   }
 
   function rearm() {
@@ -82,9 +88,22 @@ Singleton {
       Logger.i("IdleService", "Laptop lid closed, locking session and turning off monitors");
       CompositorService.lock();
       lidMonitorOffTimer.restart();
-    } else if (!closed && wasClosed && monitorsOff) {
-      Logger.i("IdleService", "Laptop lid opened, turning monitors on");
-      requestMonitorOn();
+      restartLidHibernateTimer();
+    } else if (!closed && wasClosed) {
+      lidHibernateTimer.stop();
+      if (monitorsOff) {
+        Logger.i("IdleService", "Laptop lid opened, turning monitors on");
+        requestMonitorOn();
+      }
+    }
+  }
+
+  function restartLidHibernateTimer() {
+    lidHibernateTimer.stop();
+    if (lidHibernateTimeout > 0) {
+      lidHibernateTimer.interval = Math.max(1, lidHibernateTimeout) * 1000;
+      lidHibernateTimer.restart();
+      Logger.i("IdleService", "Lid hibernate timer armed for " + lidHibernateTimeout + " seconds");
     }
   }
 
@@ -121,6 +140,15 @@ Singleton {
         Logger.i("IdleService", "Suspend idle changed: " + suspendMonitor.isIdle);
         if (suspendMonitor.isIdle) root.requestSuspend();
       });
+
+      hibernateMonitor = Qt.createQmlObject(monitorQml(), root, "QuickNix.HibernateIdleMonitor");
+      hibernateMonitor.timeout = Qt.binding(() => root.hibernateTimeout > 0 ? root.hibernateTimeout : 86400);
+      hibernateMonitor.enabled = Qt.binding(() => root._enableGate && root.enabled && root.hibernateTimeout > 0);
+      Logger.i("IdleService", "Hibernate monitor created timeout=" + hibernateMonitor.timeout + " enabled=" + hibernateMonitor.enabled);
+      hibernateMonitor.isIdleChanged.connect(() => {
+        Logger.i("IdleService", "Hibernate idle changed: " + hibernateMonitor.isIdle);
+        if (hibernateMonitor.isIdle) root.requestHibernate();
+      });
     } catch (e) {
       Logger.e("IdleService", "Failed to create IdleMonitor objects: " + e);
     }
@@ -151,6 +179,13 @@ Singleton {
     onTriggered: root.requestMonitorOff()
   }
 
+  Timer {
+    id: lidHibernateTimer
+    interval: 86400 * 1000
+    repeat: false
+    onTriggered: if (root.lidClosed) root.requestHibernate()
+  }
+
   onRequestMonitorOff: {
     Logger.i("IdleService", "Requesting monitor off");
     monitorsOff = true;
@@ -175,5 +210,11 @@ Singleton {
   onRequestSuspend: {
     if (Settings.data.general.lockOnSuspend) CompositorService.lockAndSuspend();
     else CompositorService.suspend();
+  }
+
+  onRequestHibernate: {
+    Logger.i("IdleService", "Requesting hibernate");
+    CompositorService.lock();
+    CompositorService.hibernate();
   }
 }

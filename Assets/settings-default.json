@@ -544,6 +544,8 @@
     "screenOffTimeout": 600,
     "lockTimeout": 660,
     "suspendTimeout": 1800,
+    "hibernateTimeout": 3600,
+    "lidHibernateTimeout": 900,
     "fadeDuration": 5,
     "screenOffCommand": "",
     "lockCommand": "",

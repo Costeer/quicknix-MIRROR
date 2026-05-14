@@ -802,6 +802,7 @@ Singleton {
       property int hibernateTimeout: 3600   // seconds, 0 = disabled
       property int lidHibernateTimeout: 900 // seconds after lid close, 0 = disabled
       property bool disableCaffeineOnLidClose: true
+      property bool enableCaffeineOnStart: false
       property int fadeDuration: 5       // seconds of fade-to-black before action fires
       property string screenOffCommand: ""
       property string lockCommand: ""

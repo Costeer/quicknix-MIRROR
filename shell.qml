@@ -79,6 +79,8 @@ ShellRoot {
           PowerProfileService.init();
           if (typeof NotificationRulesService !== "undefined")
             NotificationRulesService.init();
+          if (Settings.data.idle.enableCaffeineOnStart)
+            IdleInhibitorService.enable(false);
           IdleService.init();
         });
       }

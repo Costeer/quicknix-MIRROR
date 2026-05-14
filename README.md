@@ -139,6 +139,9 @@ services.quicknix-shell = {
     # Lid close still locks immediately and turns the screen off first.
     lidHibernateTimeout = 900;
 
+    # Disable caffeine / idle inhibition when the lid closes.
+    disableCaffeineOnLidClose = true;
+
     # Fade-to-black grace period before idle actions run.
     fadeDuration = 5;
   };
@@ -151,7 +154,7 @@ Recommended ordering:
 screenOffTimeout < lockTimeout < suspendTimeout < hibernateTimeout
 ```
 
-For laptops, `lidHibernateTimeout` can be much shorter than normal hibernation, for example 300 to 900 seconds.
+For laptops, `lidHibernateTimeout` can be much shorter than normal hibernation, for example 300 to 900 seconds. `disableCaffeineOnLidClose` defaults to `true`, so closing the lid allows lock, screen-off, and hibernation to proceed even if caffeine was enabled.
 
 ### NixOS integration contract
 

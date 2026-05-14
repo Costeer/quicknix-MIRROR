@@ -34,6 +34,7 @@ let
     suspendTimeout = cfg.idle.suspendTimeout;
     hibernateTimeout = cfg.idle.hibernateTimeout;
     lidHibernateTimeout = cfg.idle.lidHibernateTimeout;
+    disableCaffeineOnLidClose = cfg.idle.disableCaffeineOnLidClose;
     fadeDuration = cfg.idle.fadeDuration;
   };
 
@@ -148,6 +149,7 @@ in
             suspendTimeout = 1800;
             hibernateTimeout = 3600;
             lidHibernateTimeout = 900;
+            disableCaffeineOnLidClose = true;
             fadeDuration = 5;
           };
         }
@@ -214,6 +216,17 @@ in
           Seconds after the laptop lid closes before QuickNix hibernates the
           system. The lid still locks immediately and turns monitors off first.
           Set to 0 to disable lid-close hibernation.
+        '';
+      };
+
+      disableCaffeineOnLidClose = lib.mkOption {
+        type = lib.types.nullOr lib.types.bool;
+        default = true;
+        example = true;
+        description = ''
+          Whether QuickNix should disable caffeine / idle inhibition when the
+          laptop lid closes. This allows lid-close lock, screen-off, and
+          hibernation behavior to proceed even if caffeine was enabled.
         '';
       };
 

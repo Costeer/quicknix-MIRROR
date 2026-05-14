@@ -11,20 +11,35 @@ Singleton {
 
   property bool isInhibited: false
 
-  function toggle() {
-    if (isInhibited) {
-      if (inhibitorProcess.running)
-        inhibitorProcess.signal(15);
-      isInhibited = false;
+  function disable(showToast = true) {
+    if (!isInhibited)
+      return;
+
+    if (inhibitorProcess.running)
+      inhibitorProcess.signal(15);
+    isInhibited = false;
+    if (showToast)
       ToastService.showNotice(I18n.tr("tooltips.keep-awake"), I18n.tr("common.disabled"), "keep-awake-off");
-      Logger.i("IdleInhibitor", "Disabled");
-    } else {
-      inhibitorProcess.command = ["systemd-inhibit", "--what=idle", "--why=QuickNix caffeine", "--mode=block", "sleep", "infinity"];
-      inhibitorProcess.running = true;
-      isInhibited = true;
+    Logger.i("IdleInhibitor", "Disabled");
+  }
+
+  function enable(showToast = true) {
+    if (isInhibited)
+      return;
+
+    inhibitorProcess.command = ["systemd-inhibit", "--what=idle", "--why=QuickNix caffeine", "--mode=block", "sleep", "infinity"];
+    inhibitorProcess.running = true;
+    isInhibited = true;
+    if (showToast)
       ToastService.showNotice(I18n.tr("tooltips.keep-awake"), I18n.tr("common.enabled"), "keep-awake-on");
-      Logger.i("IdleInhibitor", "Enabled");
-    }
+    Logger.i("IdleInhibitor", "Enabled");
+  }
+
+  function toggle() {
+    if (isInhibited)
+      disable();
+    else
+      enable();
   }
 
   Process {

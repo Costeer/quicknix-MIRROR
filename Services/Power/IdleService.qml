@@ -27,6 +27,7 @@ Singleton {
   readonly property int suspendTimeout: Settings.data.idle.suspendTimeout
   readonly property int hibernateTimeout: Settings.data.idle.hibernateTimeout || 0
   readonly property int lidHibernateTimeout: Settings.data.idle.lidHibernateTimeout || 0
+  readonly property bool disableCaffeineOnLidClose: Settings.data.idle.disableCaffeineOnLidClose !== false
   readonly property bool isShellLocked: PanelService.lockScreen ? PanelService.lockScreen.active : false
 
   signal lockRequested
@@ -86,6 +87,10 @@ Singleton {
 
     if (closed && !wasClosed) {
       Logger.i("IdleService", "Laptop lid closed, locking session and turning off monitors");
+      if (disableCaffeineOnLidClose && IdleInhibitorService.isInhibited) {
+        Logger.i("IdleService", "Disabling caffeine because laptop lid closed");
+        IdleInhibitorService.disable(false);
+      }
       CompositorService.lock();
       lidMonitorOffTimer.restart();
       restartLidHibernateTimer();

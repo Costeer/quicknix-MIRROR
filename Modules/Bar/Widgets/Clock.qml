@@ -46,6 +46,7 @@ Item {
   readonly property string tooltipFormat: widgetSettings.tooltipFormat !== undefined ? widgetSettings.tooltipFormat : widgetMetadata.tooltipFormat
 
   readonly property color textColor: Color.resolveColorKey(clockColor)
+  readonly property color effectiveTextColor: clockMouseArea.containsMouse ? Color.mOnHover : textColor
 
   // Content dimensions for implicit sizing
   readonly property real contentWidth: isBarVertical ? capsuleHeight : Math.round((isBarVertical ? verticalLoader.implicitWidth : horizontalLoader.implicitWidth) + Style.margin2M)
@@ -64,9 +65,17 @@ Item {
     anchors.centerIn: parent
 
     radius: Style.radiusL
-    color: Style.capsuleColor
+    color: clockMouseArea.containsMouse ? Color.mHover : Style.capsuleColor
     border.color: Style.capsuleBorderColor
     border.width: Style.capsuleBorderWidth
+
+    Behavior on color {
+      enabled: !Color.isTransitioning
+      ColorAnimation {
+        duration: Style.animationFast
+        easing.type: Easing.InOutQuad
+      }
+    }
 
     Item {
       id: clockContainer
@@ -102,7 +111,7 @@ Item {
                 }
               }
               applyUiScale: false
-              color: textColor
+              color: effectiveTextColor
               wrapMode: Text.WordWrap
               Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
               features: ({
@@ -129,7 +138,7 @@ Item {
               family: useCustomFont && customFont ? customFont : Settings.data.ui.fontDefault
               pointSize: barFontSize
               applyUiScale: false
-              color: textColor
+              color: effectiveTextColor
               wrapMode: Text.WordWrap
               Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
               features: ({

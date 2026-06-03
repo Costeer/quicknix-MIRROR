@@ -8,8 +8,10 @@ import qs.Modules.LockScreen
 import qs.Modules.MainScreen
 import qs.Modules.Notification
 import qs.Modules.OSD
+import qs.Modules.Polkit
 import qs.Modules.Toast
 
+import qs.Services.Auth
 import qs.Services.Compositor
 import qs.Services.Hardware
 import qs.Services.Location
@@ -89,6 +91,7 @@ ShellRoot {
       Notification {}
       ToastOverlay {}
       OSD {}
+      PolkitAuthModal {}
       LockScreen {}
 
       Variants {

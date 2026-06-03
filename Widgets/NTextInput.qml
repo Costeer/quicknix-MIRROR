@@ -25,6 +25,7 @@ ColumnLayout {
   property alias text: input.text
   property alias placeholderText: input.placeholderText
   property alias inputMethodHints: input.inputMethodHints
+  property alias echoMode: input.echoMode
   property alias horizontalAlignment: input.horizontalAlignment
   property alias inputItem: input
 

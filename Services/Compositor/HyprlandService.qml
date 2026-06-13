@@ -161,29 +161,100 @@ Item {
 
       const hlWorkspaces = Hyprland.workspaces.values;
       const occupiedIds = getOccupiedWorkspaceIds();
+      const workspaceEntries = {};
+      let maxWorkspaceId = 10;
+      let fallbackOutput = "";
+
+      const occupiedKeys = Object.keys(occupiedIds);
+      for (var occupiedIndex = 0; occupiedIndex < occupiedKeys.length; occupiedIndex++) {
+        const occupiedId = parseInt(occupiedKeys[occupiedIndex], 10);
+        if (!isNaN(occupiedId) && occupiedId > maxWorkspaceId)
+          maxWorkspaceId = occupiedId;
+      }
 
       for (var i = 0; i < hlWorkspaces.length; i++) {
         const ws = hlWorkspaces[i];
         if (ws.name && ws.name.startsWith("special:"))
           continue;
 
+        const wsId = toWorkspaceId(ws);
+        if (wsId < 1)
+          continue;
+
+        const wsOutput = (ws.monitor && ws.monitor.name) ? ws.monitor.name : "";
+        if (!fallbackOutput || ws.focused === true)
+          fallbackOutput = wsOutput || fallbackOutput;
+        if (wsId > maxWorkspaceId)
+          maxWorkspaceId = wsId;
+
         const wsData = {
-          "id": ws.id,
-          "idx": ws.id,
+          "id": wsId,
+          "idx": wsId,
           "name": ws.name || "",
-          "output": (ws.monitor && ws.monitor.name) ? ws.monitor.name : "",
+          "output": wsOutput,
           "isActive": ws.active === true,
           "isFocused": ws.focused === true,
           "isUrgent": ws.urgent === true,
-          "isOccupied": occupiedIds[ws.id] === true
+          "isOccupied": occupiedIds[wsId] === true
         };
 
-        workspaceCache[ws.id] = wsData;
-        workspaces.append(wsData);
+        workspaceEntries[wsId] = wsData;
+      }
+
+      if (!fallbackOutput)
+        fallbackOutput = getFallbackWorkspaceOutput();
+
+      for (var id = 1; id <= maxWorkspaceId; id++) {
+        if (workspaceEntries[id] !== undefined)
+          continue;
+
+        workspaceEntries[id] = {
+          "id": id,
+          "idx": id,
+          "name": "",
+          "output": fallbackOutput,
+          "isActive": false,
+          "isFocused": false,
+          "isUrgent": false,
+          "isOccupied": occupiedIds[id] === true
+        };
+      }
+
+      const sortedIds = Object.keys(workspaceEntries).map(Number).sort((a, b) => a - b);
+      for (var j = 0; j < sortedIds.length; j++) {
+        const entry = workspaceEntries[sortedIds[j]];
+        workspaceCache[entry.id] = entry;
+        workspaces.append(entry);
       }
     } catch (e) {
       Logger.e("HyprlandService", "Error updating workspaces:", e);
     }
+  }
+
+  function toWorkspaceId(workspace) {
+    if (!workspace)
+      return -1;
+
+    if (typeof workspace.id === "number" && !isNaN(workspace.id))
+      return Math.floor(workspace.id);
+
+    const parsed = parseInt(workspace.name || "", 10);
+    return isNaN(parsed) ? -1 : parsed;
+  }
+
+  function getFallbackWorkspaceOutput() {
+    try {
+      if (Hyprland.toplevels && Hyprland.toplevels.values) {
+        const hlToplevels = Hyprland.toplevels.values;
+        for (var i = 0; i < hlToplevels.length; i++) {
+          const output = hlToplevels[i] && hlToplevels[i].monitor && hlToplevels[i].monitor.name ? hlToplevels[i].monitor.name : "";
+          if (output)
+            return output;
+        }
+      }
+    } catch (e) {}
+
+    return "";
   }
 
   // Get occupied workspace IDs safely

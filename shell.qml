@@ -83,6 +83,7 @@ ShellRoot {
             NotificationRulesService.init();
           if (Settings.data.idle.enableCaffeineOnStart)
             IdleInhibitorService.enable(false);
+          NightLightService.init();
           IdleService.init();
         });
       }

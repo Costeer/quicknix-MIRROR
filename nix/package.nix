@@ -7,7 +7,6 @@
     cliphist
     ddcutil
     hyprland
-    wlsunset
     wl-clipboard
     wlr-randr
     imagemagick
@@ -34,13 +33,13 @@
   cliphist,
   ddcutil,
   hyprland,
-  wlsunset,
   wl-clipboard,
   wlr-randr,
   imagemagick,
   wget,
   python3,
   wayland-scanner,
+  buildGoModule,
   # calendar support
   calendarSupport ? false,
   evolution-data-server,
@@ -51,6 +50,17 @@
   gobject-introspection,
 }:
 let
+  quicknixNightlight = buildGoModule {
+    pname = "quicknix-nightlight";
+    inherit version;
+    src = ../Tools/nightlight;
+    vendorHash = "sha256-HT7jNscq9c/zu0po//Cc+lPV9qLcZOil1r20qZqVPFg=";
+    subPackages = [ "cmd/quicknix-nightlight" ];
+    env.CGO_ENABLED = "0";
+  };
+
+  effectiveRuntimeDeps = runtimeDeps ++ [ quicknixNightlight ];
+
   src = lib.cleanSourceWith {
     src = ../.;
     filter =
@@ -102,17 +112,17 @@ stdenvNoCC.mkDerivation {
     mkdir -p $out/share/quicknix-shell $out/bin
     cp -r . $out/share/quicknix-shell
     makeWrapper ${quickshell}/bin/qs $out/bin/quicknix-shell \
-      --prefix PATH : ${lib.makeBinPath (runtimeDeps ++ extraPackages)} \
+      --prefix PATH : ${lib.makeBinPath (effectiveRuntimeDeps ++ extraPackages)} \
       --prefix XDG_DATA_DIRS : ${wayland-scanner}/share \
       --set-default QS_CONFIG_PATH "$out/share/quicknix-shell" \
       ${lib.optionalString calendarSupport "--prefix GI_TYPELIB_PATH : ${giTypelibPath}"}
 
     makeWrapper $out/share/quicknix-shell/Scripts/quicknix-lock $out/bin/quicknix-lock \
-      --prefix PATH : ${lib.makeBinPath ([ quickshell ] ++ runtimeDeps ++ extraPackages)} \
+      --prefix PATH : ${lib.makeBinPath ([ quickshell ] ++ effectiveRuntimeDeps ++ extraPackages)} \
       --set-default QS_CONFIG_PATH "$out/share/quicknix-shell"
 
     makeWrapper $out/share/quicknix-shell/Scripts/quicknix-lock-hibernate $out/bin/quicknix-lock-hibernate \
-      --prefix PATH : ${lib.makeBinPath ([ quickshell ] ++ runtimeDeps ++ extraPackages)} \
+      --prefix PATH : ${lib.makeBinPath ([ quickshell ] ++ effectiveRuntimeDeps ++ extraPackages)} \
       --set-default QS_CONFIG_PATH "$out/share/quicknix-shell"
   '';
 

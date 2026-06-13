@@ -771,6 +771,9 @@ Singleton {
       property string dayTemp: "6500"
       property string manualSunrise: "06:30"
       property string manualSunset: "18:30"
+      property string latitude: ""
+      property string longitude: ""
+      property real gamma: 1.0
     }
 
     // hooks

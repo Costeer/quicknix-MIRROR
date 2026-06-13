@@ -39,11 +39,28 @@ let
     fadeDuration = cfg.idle.fadeDuration;
   };
 
+  nightLightSettings = lib.filterAttrs (_: value: value != null) {
+    enabled = cfg.nightLight.enabled;
+    forced = cfg.nightLight.forced;
+    autoSchedule = cfg.nightLight.autoSchedule;
+    nightTemp = cfg.nightLight.nightTemp;
+    dayTemp = cfg.nightLight.dayTemp;
+    manualSunrise = cfg.nightLight.manualSunrise;
+    manualSunset = cfg.nightLight.manualSunset;
+    latitude = cfg.nightLight.latitude;
+    longitude = cfg.nightLight.longitude;
+    gamma = cfg.nightLight.gamma;
+  };
+
+  declarativeSettings =
+    lib.optionalAttrs (idleSettings != { }) { idle = idleSettings; }
+    // lib.optionalAttrs (nightLightSettings != { }) { nightLight = nightLightSettings; };
+
   effectiveSettings =
-    if idleSettings == { } then
+    if declarativeSettings == { } then
       cfg.settings
     else if builtins.isAttrs cfg.settings then
-      lib.recursiveUpdate cfg.settings { idle = idleSettings; }
+      lib.recursiveUpdate cfg.settings declarativeSettings
     else
       cfg.settings;
 
@@ -156,6 +173,100 @@ in
           };
         }
       '';
+    };
+
+    nightLight = {
+      enabled = lib.mkOption {
+        type = lib.types.nullOr lib.types.bool;
+        default = null;
+        example = true;
+        description = ''
+          Whether to enable QuickNix Night Light. When enabled, QuickNix starts
+          the QuickNix gamma-control helper with the configured temperatures
+          and schedule.
+        '';
+      };
+
+      forced = lib.mkOption {
+        type = lib.types.nullOr lib.types.bool;
+        default = null;
+        example = false;
+        description = ''
+          Whether Night Light should ignore the schedule and apply the night
+          temperature immediately.
+        '';
+      };
+
+      autoSchedule = lib.mkOption {
+        type = lib.types.nullOr lib.types.bool;
+        default = null;
+        example = true;
+        description = ''
+          Whether QuickNix should calculate sunrise and sunset from latitude
+          and longitude. Disable this to use manualSunrise and manualSunset.
+        '';
+      };
+
+      nightTemp = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+        example = "4000";
+        description = "Night-time color temperature passed to the gamma-control helper.";
+      };
+
+      dayTemp = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+        example = "6500";
+        description = "Day-time color temperature passed to the gamma-control helper.";
+      };
+
+      manualSunrise = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+        example = "06:30";
+        description = ''
+          Manual sunrise time used when autoSchedule is disabled or coordinates
+          are not configured.
+        '';
+      };
+
+      manualSunset = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+        example = "18:30";
+        description = ''
+          Manual sunset time used when autoSchedule is disabled or coordinates
+          are not configured.
+        '';
+      };
+
+      latitude = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+        example = "43.6532";
+        description = ''
+          Latitude used for automatic sunrise and sunset scheduling.
+        '';
+      };
+
+      longitude = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+        example = "-79.3832";
+        description = ''
+          Longitude used for automatic sunrise and sunset scheduling.
+        '';
+      };
+
+      gamma = lib.mkOption {
+        type = lib.types.nullOr lib.types.float;
+        default = null;
+        example = 1.0;
+        description = ''
+          Gamma correction value passed to the QuickNix gamma-control helper.
+        '';
+      };
     };
 
     idle = {
@@ -328,6 +439,10 @@ in
         assertion = idleSettings == { } || builtins.isAttrs cfg.settings;
         message = "quicknix-shell: services.quicknix-shell.idle.* can only be used when services.quicknix-shell.settings is an attrset, not a raw string or path.";
       }
+      {
+        assertion = nightLightSettings == { } || builtins.isAttrs cfg.settings;
+        message = "quicknix-shell: services.quicknix-shell.nightLight.* can only be used when services.quicknix-shell.settings is an attrset, not a raw string or path.";
+      }
     ];
 
     systemd.user.services.quicknix-shell = {
@@ -354,7 +469,10 @@ in
       environment.XDG_DATA_DIRS = lib.mkDefault "/run/current-system/sw/share:/usr/local/share:/usr/share";
     };
 
-    environment.systemPackages = [ effectivePackage ] ++ lib.optional cfg.vicinaeIntegration.enable vicinaeScriptsPackage;
+    environment.systemPackages = [
+      effectivePackage
+    ]
+    ++ lib.optional cfg.vicinaeIntegration.enable vicinaeScriptsPackage;
     environment.pathsToLink = lib.optional cfg.vicinaeIntegration.enable "/share/vicinae";
     environment.etc = etcConfigFiles;
   };
